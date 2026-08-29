@@ -104,6 +104,27 @@
    "arrets": "9900"
   }
  ],
+ "zones_des_arrets": {
+  "Terminus des Promenades - STC": "1",
+  "Boulevard Poliquin (Thalassa)": "1",
+  "Fiset / Mgr Desranleau (Eggsquis)": "1",
+  "Fiset / Mgr Desranleau (station-service)": "1",
+  "Hôtel-Dieu (hôpital)": "1",
+  "Charlotte / Du Roi": "1",
+  "Du Roi / Charlotte": "1",
+  "Bourget (Location FGL)": "1",
+  "Marie-Victorin / Filiatrault": "1",
+  "Marie-Victorin / Garneau": "1",
+  "Marie-Victorin / St-Louis": "1",
+  "Stationnement incitatif Plaza Tracy": "1",
+  "CÉGEP de Sorel-Tracy": "1",
+  "CFP (Centre de formation professionnelle)": "1",
+  "Mairie - Saint-Roch-de-Richelieu": "2-A",
+  "Du Petit-Bois et de la Rivière - Varennes": null,
+  "Campus Cégep de Sorel-Tracy - Varennes": null,
+  "Armand-Frappier / de Murano - Sainte-Julie": null,
+  "Terminus Longueuil (porte A7)": null
+ },
  "tarifs": {
   "note": "Le tarif réduit s’applique aux profils admissibles (enfants, étudiants, aînés) confirmés par la STC.",
   "titres": [

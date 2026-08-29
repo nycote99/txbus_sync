@@ -4,8 +4,10 @@
  */
 
 import {
-  decalerDate, enHeure, enMinutes, instant, instantDeDepart, profilDuJour,
+  decalerDate, enHeure, enMinutes, instant, instantDeDepart,
+  instantDepuisEpoch, profilDuJour,
 } from './calendrier.js';
+import { previsionA, vehiculeDuVoyage } from './tempsreel.js';
 
 export const LIGNES = {
   ligne10: {
@@ -119,10 +121,30 @@ export function prochainsPassages(donnees, options) {
 }
 
 /**
- * Position estimee d'un vehicule le long de son parcours.
- *
- * La STC ne publie pas de flux temps reel ouvert : cette position est deduite
- * de l'horaire officiel, et l'interface le dit explicitement.
+ * Passage d'un vehicule a un arret : heure prevue par le flux temps reel si
+ * elle existe, heure publiee sinon, avec l'ecart entre les deux.
+ */
+export function passageReel(etat, voyage, passage) {
+  const vehicule = vehiculeDuVoyage(etat, voyage);
+  const prevision = vehicule ? previsionA(etat, vehicule, passage.arret) : null;
+  if (!prevision) {
+    return { instant: passage.instant, heure: passage.heure, direct: false,
+             vehicule };
+  }
+  const instantPrevu = instantDepuisEpoch(prevision.heure);
+  return {
+    instant: instantPrevu,
+    heure: enHeure(instantPrevu % 1440),
+    direct: true,
+    vehicule,
+    ecart: Math.round(instantPrevu - passage.instant),
+  };
+}
+
+/**
+ * Position d'un vehicule le long de son parcours, deduite de l'horaire publie.
+ * Sert de repli quand le flux temps reel ne couvre pas ce voyage : hors ligne,
+ * flux indisponible, ou consultation d'une autre journee.
  */
 export function position(voyage, instantCourant) {
   const passages = voyage.passages;
@@ -161,21 +183,41 @@ export function position(voyage, instantCourant) {
   return { etat: 'termine', progression: 1, avant: dernier };
 }
 
-/** Voyages actuellement en circulation sur l'ensemble du reseau. */
-export function vehiculesEnCirculation(donnees, jourDeService, instantCourant) {
+/**
+ * Vehicules actuellement en circulation.
+ *
+ * Quand le flux temps reel repond, il fait foi : il ne montre que les vehicules
+ * reellement en service, ce qu'un horaire ne peut pas savoir. Sinon on retombe
+ * sur les voyages que l'horaire situe en cours.
+ */
+export function vehiculesEnCirculation(donnees, jourDeService, instantCourant,
+                                       etatTempsReel) {
   const profil = profilDuJour(jourDeService, donnees);
-  const enRoute = [];
+  const tous = [];
   Object.keys(LIGNES).forEach((ligne) => {
     Object.keys(LIGNES[ligne].directions).forEach((direction) => {
-      voyages(donnees, ligne, direction, jourDeService, profil).forEach((voyage) => {
-        const p = position(voyage, instantCourant);
-        if (p.etat === 'en_route' || p.etat === 'a_l_arret') {
-          enRoute.push({ voyage, position: p });
-        }
-      });
+      tous.push(...voyages(donnees, ligne, direction, jourDeService, profil));
     });
   });
-  return enRoute.sort((a, b) => a.voyage.depart.instant - b.voyage.depart.instant);
+
+  if (etatTempsReel && etatTempsReel.vehicules.length) {
+    const enService = [];
+    etatTempsReel.vehicules.forEach((vehicule) => {
+      const voyage = tous.find((candidat) => candidat.ligne === vehicule.ligne
+        && candidat.direction === vehicule.direction
+        && candidat.depart.heure === vehicule.depart);
+      if (voyage) enService.push({ voyage, vehicule });
+    });
+    if (enService.length) {
+      return enService.sort((a, b) =>
+        a.voyage.depart.instant - b.voyage.depart.instant);
+    }
+  }
+
+  return tous
+    .map((voyage) => ({ voyage, position: position(voyage, instantCourant) }))
+    .filter(({ position: p }) => p.etat === 'en_route' || p.etat === 'a_l_arret')
+    .sort((a, b) => a.voyage.depart.instant - b.voyage.depart.instant);
 }
 
 // --- Taxibus -----------------------------------------------------------------
@@ -250,10 +292,18 @@ export function etatReservation(limite, instantCourant, seuilAlerte = 60) {
   return { code: 'ouvert', restant, libelle: 'Réservable' };
 }
 
-/** Departs taxibus a partir de maintenant, avec leur heure limite. */
+/**
+ * Departs de taxibus, avec leur heure limite de reservation.
+ *
+ * `depuis` filtre les departs (par defaut : maintenant), tandis que
+ * `maintenant` sert a evaluer s'il est encore temps de reserver. Les deux
+ * different des qu'on prepare une correspondance : on cherche un depart apres
+ * l'arrivee de l'autobus, mais la reservation, elle, se joue tout de suite.
+ */
 export function departsTaxibus(donnees, options) {
   const { origine, destination, maintenant: instantCourant, jourDeService,
           limite = 12, inclurePasses = false } = options;
+  const depuis = options.depuis === undefined ? instantCourant : options.depuis;
   const resultat = [];
 
   for (let decalage = 0; decalage < 4 && resultat.length < limite; decalage += 1) {
@@ -265,7 +315,7 @@ export function departsTaxibus(donnees, options) {
 
     [...heures].forEach((heure) => {
       const info = limiteReservation(donnees, jour, heure);
-      if (!inclurePasses && info.instantDepart < instantCourant) return;
+      if (!inclurePasses && info.instantDepart < depuis) return;
       resultat.push({
         heure,
         jour,
@@ -273,6 +323,7 @@ export function departsTaxibus(donnees, options) {
         ...info,
         etat: etatReservation(info, instantCourant),
         dansMinutes: info.instantDepart - instantCourant,
+        attente: info.instantDepart - depuis,
       });
     });
   }

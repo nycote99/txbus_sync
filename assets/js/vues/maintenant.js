@@ -8,7 +8,7 @@ import {
   dateLongue, enHeure, instant, profilDuJour,
 } from '../calendrier.js';
 import {
-  arretsDeLigne, delai, departsTaxibus, prochainsPassages,
+  LIGNES, arretsDeLigne, delai, departsTaxibus, prochainsPassages,
   vehiculesEnCirculation,
 } from '../reseau.js';
 import { preferences, definir } from '../preferences.js';
@@ -24,11 +24,31 @@ export function vueMaintenant(contexte) {
 
   return h('div.pile',
     bandeauDuJour(donnees, profil, jourDeService),
+    alertesDuReseau(contexte.tempsReel),
     alerteReservation(contexte, prefs, maintenantInstant),
     h('div.grille-cartes',
       carteAutobus(contexte, prefs, maintenantInstant, aller),
       carteTaxibus(contexte, prefs, maintenantInstant, aller)),
-    carteCirculation(donnees, jourDeService, maintenantInstant, aller));
+    carteCirculation(contexte, maintenantInstant, aller));
+}
+
+/**
+ * Avis de service publies par la STC dans son flux temps reel.
+ * Replies par defaut : ils sont longs, et souvent deja connus de l'usager
+ * quotidien.
+ */
+function alertesDuReseau(tempsReel) {
+  if (!tempsReel || !tempsReel.alertes.length) return null;
+  return tempsReel.alertes.map((alerte) => {
+    const texte = alerte.texte || '';
+    const titre = alerte.titre || 'Avis de service';
+    const accroche = texte.split('\n')[0].slice(0, 90);
+    return h('details.bandeau.bandeau--alerte.avis',
+      h('summary',
+        h('strong', titre),
+        h('span.avis__accroche', accroche)),
+      h('p.avis__texte', texte));
+  });
 }
 
 function bandeauDuJour(donnees, profil, jourDeService) {
@@ -99,7 +119,8 @@ function carteAutobus(contexte, prefs, maintenantInstant, aller) {
           () => aller('autobus', { ligne: entree.voyage.ligne,
                                     arret: entree.passage.arret,
                                     voyage: entree.voyage.colonne,
-                                    direction: entree.voyage.direction }))))
+                                    direction: entree.voyage.direction }),
+          contexte.tempsReel)))
     : messageVide('Aucun passage à venir à cet arrêt.');
 
   return carte(prefs.arretFavori, corps, {
@@ -134,12 +155,15 @@ function carteTaxibus(contexte, prefs, maintenantInstant, aller) {
   });
 }
 
-function carteCirculation(donnees, jourDeService, maintenantInstant, aller) {
-  const enRoute = vehiculesEnCirculation(donnees, jourDeService, maintenantInstant);
+function carteCirculation(contexte, maintenantInstant, aller) {
+  const { donnees, jourDeService, tempsReel } = contexte;
+  const enRoute = vehiculesEnCirculation(donnees, jourDeService,
+    maintenantInstant, tempsReel);
+  const direct = Boolean(tempsReel && tempsReel.vehicules.length);
 
   const corps = enRoute.length
     ? h('ul.passages', enRoute.map(({ voyage }) => {
-        const resume = resumePosition(voyage, maintenantInstant);
+        const resume = resumePosition(voyage, maintenantInstant, tempsReel);
         return h('li', h('button.passage', {
           type: 'button',
           onclick: () => aller('autobus', { ligne: voyage.ligne,
@@ -159,7 +183,9 @@ function carteCirculation(donnees, jourDeService, maintenantInstant, aller) {
 
   return carte(`En circulation (${enRoute.length})`, corps, {
     plat: enRoute.length > 0,
-    aDroite: h('span.pastille.pastille--neutre', 'Estimé selon l’horaire'),
+    aDroite: direct
+      ? h('span.pastille.pastille--ok', 'Positions GPS en direct')
+      : h('span.pastille.pastille--neutre', 'Estimé selon l’horaire'),
   });
 }
 

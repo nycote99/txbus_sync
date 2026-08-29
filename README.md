@@ -24,11 +24,24 @@ réservable jusqu’à 21 h 15, mais jusqu’à 20 h 30 ; et le premier départ 
 lendemain matin doit être réservé la veille au soir. Chaque départ affiche un
 compte à rebours et un état : réservable, dernière chance, ou fermé.
 
-**Suivi des autobus.** Position estimée de chaque véhicule le long de son
-parcours, calculée à partir de l’horaire officiel et de l’heure courante à
-Sorel-Tracy. La STC ne publie pas de flux temps réel ouvert : l’application le
-dit explicitement partout où une position est affichée, et renvoie vers le
-suivi officiel en direct.
+**Suivi des autobus en direct.** La STC publie un flux GTFS-RT ouvert, sans
+authentification et avec les en-têtes CORS qui permettent de l’interroger
+depuis le navigateur. L’application y lit la position GPS des véhicules, les
+heures de passage réellement prévues à chaque arrêt — d’où l’écart affiché avec
+la fiche horaire — et les avis de service.
+
+Quand le flux ne répond pas — hors ligne, panne, ou consultation d’une autre
+journée — l’application retombe sur une position estimée à partir de l’horaire
+publié, et le dit : la pastille passe de « en direct » à « estimé selon
+l’horaire ».
+
+**Correspondance autobus vers taxibus.** C’est là que les deux services se
+rejoignent vraiment. En choisissant son voyage — l’express depuis Longueuil,
+par exemple — on voit les départs de taxibus depuis la zone d’arrivée, le temps
+d’attente, et surtout l’heure limite de réservation de chacun. Le cas qui
+justifie l’écran est signalé en toutes lettres : la réservation ferme souvent
+*avant même que l’autobus n’arrive*, et parfois avant qu’on ne soit monté
+dedans.
 
 **Le reste.** Prochains passages à n’importe quel arrêt, grilles horaires
 complètes, tarifs 2026, pénalités d’absence, zones du taxibus, et le calendrier
@@ -44,16 +57,35 @@ hors ligne une fois la page visitée.
 index.html                  coquille de l'application
 assets/css/app.css          jetons de couleur, mise en page adaptative
 assets/js/calendrier.js     jours de service, jours fériés, heures du terminus
-assets/js/reseau.js         requêtes d'horaire, position estimée, heures limites
+assets/js/reseau.js         requêtes d'horaire, heures limites, position
+assets/js/protobuf.js       lecteur minimal du format de fil protobuf
+assets/js/tempsreel.js      flux GTFS-RT : positions, prévisions, avis
 assets/js/vues/             une vue par onglet
 data/horaires.json          horaires extraits des PDF officiels
+data/reseau-gtfs.json       table qui nomme les identifiants du flux temps réel
 tools/parse_horaires.py     extraction PDF → JSON
+tools/parse_gtfs.py         extraction GTFS statique → table de référence
 tools/verifier_donnees.py   contrôles de cohérence des horaires
+tools/verifier_gtfs.py      contrôles sur la table de référence
 tools/verifier_service_worker.py  contrôle de la coquille hors ligne
 ```
 
 Aucune dépendance, aucune étape de compilation : les fichiers publiés sont les
-fichiers servis.
+fichiers servis. Le flux temps réel est un protobuf binaire ; plutôt que
+d'embarquer une bibliothèque de plusieurs centaines de kilo-octets pour lire
+une dizaine de champs, `protobuf.js` décode directement le format de fil, qui
+n'a que quatre types.
+
+## Sources de données
+
+| Source | Contenu | Rafraîchissement |
+|---|---|---|
+| Fiches PDF de la STC | horaires ligne 10, express, taxibus par zone | à la main, ~2 fois l'an |
+| GTFS statique Zenbus | noms des lignes, arrêts et directions | à la main, avec les PDF |
+| GTFS-RT Zenbus | positions GPS, heures prévues, avis de service | toutes les 30 s dans le navigateur |
+
+Le taxibus n'est pas dans le GTFS : il reste entièrement décrit par les fiches
+PDF, et ses heures limites de réservation sont calculées par l'application.
 
 ## Développement
 
@@ -77,7 +109,8 @@ reprendre :
    ```sh
    pip install pdfplumber
    python3 tools/parse_horaires.py --telecharger
-   python3 tools/verifier_donnees.py
+   python3 tools/parse_gtfs.py --telecharger
+   python3 tools/verifier_donnees.py && python3 tools/verifier_gtfs.py
    ```
 
 3. relire le tableau d’un circuit dans l’application et le comparer au PDF
@@ -90,7 +123,15 @@ un voyage qui recule dans le temps, une heure impossible ou une zone inconnue �
 autant de symptômes d’une mise en page qui aurait changé.
 
 Les données de référence qui ne figurent pas dans les grilles — zones, tarifs,
-règles, coordonnées — sont tenues à la main en fin de `parse_horaires.py`.
+règles, coordonnées, et la zone de taxibus de chaque arrêt d'autobus — sont
+tenues à la main en fin de `parse_horaires.py`. Un arrêt ajouté par la STC sans
+zone correspondante fait échouer `verifier_donnees.py`, ce qui évite qu'une
+correspondance disparaisse en silence.
+
+Un piège à connaître dans le GTFS : `direction_id` n'est pas cohérent d'un
+circuit à l'autre — il vaut 0 pour Longueuil sur les 750 et 752, mais 0 pour
+Sorel-Tracy sur les 751 et 753. Seule la destination affichée est fiable, et
+c'est elle que `parse_gtfs.py` utilise.
 
 ## Vérifications
 
@@ -99,12 +140,15 @@ request* et sur `main` :
 
 ```sh
 python3 tools/verifier_donnees.py         # cohérence des horaires extraits
+python3 tools/verifier_gtfs.py            # cohérence de la table de référence
 python3 tools/verifier_service_worker.py  # complétude de la coquille hors ligne
 ```
 
-Le second attrape le module oublié dans `service-worker.js` : la page continue
-de fonctionner en développement, et casse chez l'usager qui la rouvre sans
-réseau à un arrêt.
+Le contrôle de la coquille attrape le module oublié dans `service-worker.js` :
+la page continue de fonctionner en développement, et casse chez l'usager qui la
+rouvre sans réseau à un arrêt. Celui de la table GTFS attrape les changements
+d'identifiants chez Zenbus, qui rendraient la couche temps réel muette sans
+rien casser d'apparent.
 
 ## Déploiement
 

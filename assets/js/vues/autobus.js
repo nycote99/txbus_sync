@@ -13,6 +13,7 @@ import {
   carte, elementPassage, messageVide, parcoursDuVoyage, pastilleLigne,
   resumePosition,
 } from './communs.js';
+import { carteCorrespondances } from './correspondances.js';
 
 export function vueAutobus(contexte) {
   const { donnees, horloge, jourDeService, profil, etatVue, rafraichir } = contexte;
@@ -36,6 +37,7 @@ export function vueAutobus(contexte) {
 
   const voyageChoisi = trouverVoyage(donnees, ligne, direction, jourDeService,
     profil, etatVue.voyage);
+  const tempsReel = contexte.tempsReel;
 
   return h('div.pile',
     carte('Choisir un arrêt', h('div.pile.pile--serre',
@@ -64,11 +66,15 @@ export function vueAutobus(contexte) {
               direction: entree.voyage.direction,
               voyage: entree.voyage.colonne,
               arret,
-            }))))
+            }), tempsReel)))
         : messageVide('Aucun passage à venir à cet arrêt aujourd’hui.'),
       { plat: passages.length > 0 }),
 
-    voyageChoisi ? carteSuivi(voyageChoisi, maintenantInstant, donnees) : null,
+    voyageChoisi
+      ? carteSuivi(voyageChoisi, maintenantInstant, donnees, tempsReel) : null,
+
+    voyageChoisi
+      ? carteCorrespondances(contexte, voyageChoisi, maintenantInstant) : null,
 
     carteHoraire(donnees, ligne, direction, jourDeService, profil,
       maintenantInstant, arret, rafraichir));
@@ -80,17 +86,19 @@ function trouverVoyage(donnees, ligne, direction, jourDeService, profil, colonne
     .find((v) => v.colonne === colonne) || null;
 }
 
-function carteSuivi(voyage, maintenantInstant, donnees) {
-  const resume = resumePosition(voyage, maintenantInstant);
+function carteSuivi(voyage, maintenantInstant, donnees, tempsReel) {
+  const resume = resumePosition(voyage, maintenantInstant, tempsReel);
   return carte('Suivi du véhicule',
     h('div.pile.pile--serre',
       h('p.note', h('strong', resume.titre), ' — ', resume.detail),
-      parcoursDuVoyage(voyage, maintenantInstant),
+      parcoursDuVoyage(voyage, maintenantInstant, tempsReel),
       h('a.bouton.bouton--pleine', {
         href: donnees.liens.suivi, target: '_blank', rel: 'noopener',
-      }, 'Ouvrir le suivi officiel en direct')),
+      }, 'Ouvrir le suivi officiel de la STC')),
     {
-      aDroite: h('span.pastille.pastille--neutre', 'Position estimée'),
+      aDroite: resume.direct
+        ? h('span.pastille.pastille--ok', 'Position GPS en direct')
+        : h('span.pastille.pastille--neutre', 'Position estimée'),
     });
 }
 

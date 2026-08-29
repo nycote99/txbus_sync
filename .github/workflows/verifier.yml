@@ -25,3 +25,6 @@ jobs:
 
       - name: Vérifier que la coquille hors ligne liste tous les modules
         run: python3 tools/verifier_service_worker.py
+
+      - name: Vérifier la table de référence GTFS
+        run: python3 tools/verifier_gtfs.py

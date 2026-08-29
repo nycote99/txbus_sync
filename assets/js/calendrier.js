@@ -34,6 +34,29 @@ export function maintenant(horlogeFactice) {
   };
 }
 
+/**
+ * Convertit un horodatage epoch (secondes) en heure murale a Sorel-Tracy.
+ * Le flux temps reel publie des instants absolus ; l'horaire publie, des
+ * heures murales. C'est ici qu'on les ramene sur la meme echelle.
+ */
+export function depuisEpoch(secondes) {
+  const parties = new Intl.DateTimeFormat('en-CA', {
+    timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).formatToParts(new Date(secondes * 1000));
+  const p = Object.fromEntries(parties.map((x) => [x.type, x.value]));
+  return {
+    date: { annee: +p.year, mois: +p.month, jour: +p.day },
+    minutes: (+p.hour % 24) * 60 + +p.minute + +p.second / 60,
+  };
+}
+
+/** Instant absolu, en minutes, d'un horodatage epoch. */
+export function instantDepuisEpoch(secondes) {
+  const { date, minutes } = depuisEpoch(secondes);
+  return instant(date, minutes);
+}
+
 /** Numero de jour continu, pour comparer et decaler des dates sans Date(). */
 export function numeroDeJour({ annee, mois, jour }) {
   const a = Math.floor((14 - mois) / 12);

@@ -8,8 +8,10 @@
 
 import { h, vider } from './dom.js';
 import {
-  dateLongue, enHeure, jourDeServiceActuel, maintenant, profilDuJour,
+  dateLongue, enHeure, jourDeServiceActuel, maintenant, numeroDeJour,
+  profilDuJour,
 } from './calendrier.js';
+import { DELAI_RAFRAICHISSEMENT, chargerTempsReel } from './tempsreel.js';
 import { preferences, definir } from './preferences.js';
 import { vueMaintenant } from './vues/maintenant.js';
 import { vueAutobus } from './vues/autobus.js';
@@ -28,6 +30,8 @@ const elementHorloge = document.getElementById('horloge');
 const elementEtatDuJour = document.getElementById('etat-du-jour');
 
 let donnees = null;
+let reference = null;
+let tempsReel = null;
 let vueActive = 'maintenant';
 let etatVue = {};
 
@@ -37,9 +41,14 @@ async function demarrer() {
   brancherTheme();
 
   try {
-    const reponse = await fetch(`data/horaires.json?v=${document.documentElement.dataset.version || ''}`);
-    if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
-    donnees = await reponse.json();
+    const [horaires, reseau] = await Promise.all([
+      charger('data/horaires.json'),
+      // La table GTFS ne sert qu'a nommer ce que dit le flux temps reel :
+      // son absence degrade l'application, elle ne l'empeche pas de servir.
+      charger('data/reseau-gtfs.json').catch(() => null),
+    ]);
+    donnees = horaires;
+    reference = reseau;
   } catch (erreur) {
     vider(conteneur).append(h('div.bandeau.bandeau--arret',
       h('div', h('strong', 'Horaires indisponibles'),
@@ -60,19 +69,53 @@ async function demarrer() {
   });
 
   dessiner();
+  rafraichirTempsReel();
   setInterval(dessiner, 30000);
+  setInterval(rafraichirTempsReel, DELAI_RAFRAICHISSEMENT);
   setInterval(majHorloge, 1000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) dessiner();
+    if (document.hidden) return;
+    dessiner();
+    rafraichirTempsReel();
   });
   enregistrerServiceWorker();
+}
+
+async function charger(chemin) {
+  const reponse = await fetch(chemin);
+  if (!reponse.ok) throw new Error(`HTTP ${reponse.status} sur ${chemin}`);
+  return reponse.json();
+}
+
+/**
+ * Rafraichit les positions reelles. Le flux ne decrit que la journee en cours :
+ * inutile de l'interroger quand l'ecran est en arriere-plan.
+ */
+async function rafraichirTempsReel() {
+  if (!reference || document.hidden) return;
+  const etat = await chargerTempsReel(reference);
+  const changement = resume(etat) !== resume(tempsReel);
+  tempsReel = etat;
+  if (changement) dessiner();
+}
+
+function resume(etat) {
+  if (!etat) return 'aucun';
+  return `${etat.horodatage}:${etat.vehicules.length}:${etat.alertes.length}`;
 }
 
 function contexte() {
   const horloge = maintenant();
   const jourDeService = jourDeServiceActuel(horloge);
+  const horsAujourdHui = numeroDeJour(jourDeService)
+    !== numeroDeJour(jourDeServiceActuel(horloge));
+
   return {
     donnees,
+    reference,
+    // Le flux ne decrit que les vehicules du moment : on ne le presente pas
+    // comme la verite d'une journee qu'on ne vit pas.
+    tempsReel: horsAujourdHui ? null : tempsReel,
     horloge,
     jourDeService,
     profil: profilDuJour(jourDeService, donnees),

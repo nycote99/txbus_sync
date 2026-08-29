@@ -29,6 +29,9 @@ jobs:
       - name: Vérifier la coquille hors ligne
         run: python3 tools/verifier_service_worker.py
 
+      - name: Vérifier la table de référence GTFS
+        run: python3 tools/verifier_gtfs.py
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3

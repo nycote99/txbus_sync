@@ -335,6 +335,32 @@ ZONES = [
      "municipalites": ["Saint-Antoine-sur-Richelieu"], "arrets": "9900"},
 ]
 
+# Zone de taxibus dans laquelle se trouve chaque arret d'autobus. Sert a
+# enchainer un trajet en autobus avec un depart de taxibus : c'est la zone
+# d'arrivee qui determine les departs disponibles et leur heure limite.
+# `None` signale un arret hors du territoire desservi par le taxibus.
+ZONES_DES_ARRETS = {
+    "Terminus des Promenades - STC": "1",
+    "Boulevard Poliquin (Thalassa)": "1",
+    "Fiset / Mgr Desranleau (Eggsquis)": "1",
+    "Fiset / Mgr Desranleau (station-service)": "1",
+    "Hôtel-Dieu (hôpital)": "1",
+    "Charlotte / Du Roi": "1",
+    "Du Roi / Charlotte": "1",
+    "Bourget (Location FGL)": "1",
+    "Marie-Victorin / Filiatrault": "1",
+    "Marie-Victorin / Garneau": "1",
+    "Marie-Victorin / St-Louis": "1",
+    "Stationnement incitatif Plaza Tracy": "1",
+    "CÉGEP de Sorel-Tracy": "1",
+    "CFP (Centre de formation professionnelle)": "1",
+    "Mairie - Saint-Roch-de-Richelieu": "2-A",
+    "Du Petit-Bois et de la Rivière - Varennes": None,
+    "Campus Cégep de Sorel-Tracy - Varennes": None,
+    "Armand-Frappier / de Murano - Sainte-Julie": None,
+    "Terminus Longueuil (porte A7)": None,
+}
+
 FERIES = [
     {"cle": "jour_de_lan", "nom": "Jour de l’An", "terminus_ouvert": False},
     {"cle": "lendemain_jour_de_lan", "nom": "Lendemain du Jour de l’An",
@@ -428,6 +454,7 @@ def construire():
         "liens": LIENS,
         "regles": REGLES,
         "zones": ZONES,
+        "zones_des_arrets": ZONES_DES_ARRETS,
         "tarifs": TARIFS,
         "feries": FERIES,
     }

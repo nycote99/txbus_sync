@@ -677,3 +677,46 @@ a { color: var(--marque); }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+
+/* --- Avis de service ----------------------------------------------------- */
+
+.avis { display: block; padding: 0; }
+.avis > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .15rem .5rem;
+  padding: .85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--r-m);
+}
+.avis > summary::-webkit-details-marker { display: none; }
+.avis > summary::after {
+  content: "＋";
+  margin-left: auto;
+  font-size: .9rem;
+  opacity: .7;
+}
+.avis[open] > summary::after { content: "－"; }
+.avis__accroche {
+  font-size: .8rem;
+  opacity: .85;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.avis[open] .avis__accroche { display: none; }
+.avis__texte {
+  margin: 0;
+  padding: 0 1rem 1rem;
+  font-size: .84rem;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.correspondance__avis {
+  display: block;
+  color: var(--alerte);
+  font-weight: 650;
+}

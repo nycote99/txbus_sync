@@ -34,7 +34,8 @@ def verifier():
         donnees = json.load(fichier)
 
     for cle in ("version_horaire", "terminus", "liens", "regles", "zones",
-                "feries", "tarifs", "ligne10", "express", "taxibus"):
+                "feries", "tarifs", "ligne10", "express", "taxibus",
+                "zones_des_arrets"):
         if cle not in donnees:
             erreurs.append("section manquante : %s" % cle)
     if erreurs:
@@ -80,6 +81,21 @@ def verifier():
     for zone in donnees["zones"]:
         if not zone.get("municipalites"):
             erreurs.append("zone %s : aucune municipalite" % zone["code"])
+
+    # Tout arret desservi doit etre rattache a une zone de taxibus, ou declare
+    # explicitement hors territoire : sans cela, aucune correspondance possible.
+    rattachement = donnees["zones_des_arrets"]
+    for ligne in DIRECTIONS:
+        for service in SERVICES:
+            for bloc in donnees[ligne].get(service, {}).values():
+                for arret in bloc.get("arrets", []):
+                    if arret["nom"] not in rattachement:
+                        erreurs.append("arrêt sans zone de taxibus : %r"
+                                       % arret["nom"])
+    for nom, code in rattachement.items():
+        if code is not None and code not in codes_zones:
+            erreurs.append("arrêt %r rattaché à la zone inconnue %s"
+                           % (nom, code))
 
     cles_feries = {ferie["cle"] for ferie in donnees["feries"]}
     if len(cles_feries) != 14:

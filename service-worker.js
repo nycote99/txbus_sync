@@ -18,12 +18,16 @@ const COQUILLE = [
   'assets/js/calendrier.js',
   'assets/js/reseau.js',
   'assets/js/preferences.js',
+  'assets/js/protobuf.js',
+  'assets/js/tempsreel.js',
   'assets/js/vues/communs.js',
+  'assets/js/vues/correspondances.js',
   'assets/js/vues/maintenant.js',
   'assets/js/vues/autobus.js',
   'assets/js/vues/taxibus.js',
   'assets/js/vues/infos.js',
   'data/horaires.json',
+  'data/reseau-gtfs.json',
 ];
 
 self.addEventListener('install', (evenement) => {
