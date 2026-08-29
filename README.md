@@ -108,9 +108,23 @@ réseau à un arrêt.
 
 ## Déploiement
 
-Un push sur `main` déclenche `.github/workflows/pages.yml`, qui vérifie les
-données puis publie la racine du dépôt sur GitHub Pages. Activer *Settings →
-Pages → Source : GitHub Actions* la première fois.
+Le site est publié sur GitHub Pages :
+<https://nycote99.github.io/txbus_sync/>
+
+Deux façons de le servir, au choix.
+
+**Depuis une branche** (configuration actuelle). GitHub publie le contenu de la
+branche choisie dans *Settings → Pages → Source : Deploy from a branch*. Rien
+d'autre à faire : le dépôt ne contient aucune étape de compilation, les
+fichiers publiés sont les fichiers servis. Après la fusion, pointer la source
+sur `main`, sinon le site cesse d'être mis à jour quand la branche de travail
+disparaît.
+
+**Par le workflow** (`.github/workflows/pages.yml`). Choisir *Settings → Pages
+→ Source : GitHub Actions*. Chaque push sur `main` vérifie alors les données et
+la coquille hors ligne **avant** de publier, ce qui empêche une extraction
+ratée d'atteindre le site. Ce workflow reste inerte tant que la source est une
+branche.
 
 ## Portée et limites
 
