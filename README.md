@@ -35,13 +35,28 @@ journée — l’application retombe sur une position estimée à partir de l’
 publié, et le dit : la pastille passe de « en direct » à « estimé selon
 l’horaire ».
 
-**Correspondance autobus vers taxibus.** C’est là que les deux services se
-rejoignent vraiment. En choisissant son voyage — l’express depuis Longueuil,
-par exemple — on voit les départs de taxibus depuis la zone d’arrivée, le temps
-d’attente, et surtout l’heure limite de réservation de chacun. Le cas qui
-justifie l’écran est signalé en toutes lettres : la réservation ferme souvent
-*avant même que l’autobus n’arrive*, et parfois avant qu’on ne soit monté
-dedans.
+**Mon retour.** L’écran bâti autour du déplacement qui expose le mieux le
+problème : rentrer en express, puis prendre un taxibus. On choisit d’où l’on
+part, où l’on descend, vers quelle zone on poursuit et quel jour ; l’écran rend
+chaque express de la journée avec le taxibus qui le prolonge, le temps
+d’attente, et un verdict qui dit *quand* réserver.
+
+Ce verdict est la raison d’être de l’écran. Un mardi ordinaire, sur les
+34 retours depuis Longueuil, **27 exigent de réserver avant même de descendre
+de l’autobus, et 6 avant d’y monter** — le terminus ayant fermé à 20 h 30, un
+express qui quitte Longueuil à 22 h 20 arrive à 23 h 18 alors que le taxibus de
+00 h 15 devait être réservé une heure cinquante plus tôt.
+
+Chaque retour porte deux gestes : réserver sur le portail de la STC, ou
+**poser un rappel dans son calendrier** — un fichier `.ics` avec une alarme
+calée avant l’échéance, produit sans serveur ni compte.
+
+La journée consultée se choisit librement, dans la fenêtre de quatorze jours
+qu’ouvre la réservation en ligne, et l’adresse porte tout l’état de l’écran :
+« mon retour de jeudi » s’envoie par message.
+
+**Correspondance autobus vers taxibus.** La même mécanique, greffée sur le
+suivi d’un voyage choisi dans l’onglet Autobus.
 
 **Le reste.** Prochains passages à n’importe quel arrêt, grilles horaires
 complètes, tarifs 2026, pénalités d’absence, zones du taxibus, et le calendrier
@@ -60,6 +75,7 @@ assets/js/calendrier.js     jours de service, jours fériés, heures du terminus
 assets/js/reseau.js         requêtes d'horaire, heures limites, position
 assets/js/protobuf.js       lecteur minimal du format de fil protobuf
 assets/js/tempsreel.js      flux GTFS-RT : positions, prévisions, avis
+assets/js/rappel.js         fichier calendrier de rappel d'une heure limite
 assets/js/vues/             une vue par onglet
 data/horaires.json          horaires extraits des PDF officiels
 data/reseau-gtfs.json       table qui nomme les identifiants du flux temps réel

@@ -9,6 +9,7 @@ import { dateLongue, enHeure, instant } from '../calendrier.js';
 import { delai, departsTaxibus, destinationsDepuis } from '../reseau.js';
 import { preferences, definir } from '../preferences.js';
 import { carte, messageVide } from './communs.js';
+import { controleDate } from './date.js';
 
 export function vueTaxibus(contexte) {
   const { donnees, horloge, jourDeService, rafraichir } = contexte;
@@ -31,27 +32,31 @@ export function vueTaxibus(contexte) {
       texte: `${zone.nom} — ${zone.municipalites.join(', ')}`,
     })));
 
-  const destinationValide = prefs.zoneDestination
-    && destinations.some((z) => z.code === prefs.zoneDestination)
-    ? prefs.zoneDestination : '';
+  const souhaitee = contexte.etatVue.zoneDestination !== undefined
+    ? contexte.etatVue.zoneDestination : prefs.zoneDestination;
+  const destinationValide = souhaitee
+    && destinations.some((z) => z.code === souhaitee) ? souhaitee : '';
 
   const departs = departsTaxibus(donnees, {
     origine: zoneCourante.code,
     destination: destinationValide || null,
     maintenant: maintenantInstant,
+    // Une journée future se consulte en entier, pas à partir de l'heure qu'il est.
+    depuis: contexte.estAujourdHui ? maintenantInstant : -Infinity,
     jourDeService,
-    limite: 20,
+    limite: contexte.estAujourdHui ? 20 : 60,
   });
 
   const selecteurs = h('div.grille-champs',
     champSelect('Zone de départ', zonesOrigine, zoneCourante.code, (valeur) => {
       definir({ zoneOrigine: valeur, zoneDestination: '' });
-      rafraichir();
+      rafraichir({ zoneDestination: '' });
     }),
     champSelect('Zone d’arrivée', choixDestination, destinationValide, (valeur) => {
       definir({ zoneDestination: valeur });
-      rafraichir();
-    }));
+      rafraichir({ zoneDestination: valeur });
+    }),
+    controleDate(contexte));
 
   const liste = departs.length
     ? h('ul.passages', departs.map((depart) =>

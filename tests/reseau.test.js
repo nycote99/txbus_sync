@@ -12,9 +12,9 @@ import {
   enHeure, enMinutes, instant, profilDuJour,
 } from '../assets/js/calendrier.js';
 import {
-  LIGNES, arretsDeLigne, delai, departsTaxibus, destinationsDepuis,
-  etatReservation, grille, limiteReservation, position, prochainsPassages,
-  vehiculesEnCirculation, voyages,
+  LIGNES, arretsDeDirection, arretsDeLigne, delai, departsTaxibus,
+  destinationsDepuis, etatReservation, grille, limiteReservation, position,
+  prochainsPassages, retoursAvecTaxibus, vehiculesEnCirculation, voyages,
 } from '../assets/js/reseau.js';
 
 import { MARDI, lireHoraires } from './aide.js';
@@ -316,5 +316,133 @@ describe('formatage des délais', () => {
     assert.equal(delai(60), '1 h 00');
     assert.equal(delai(85), '1 h 25');
     assert.equal(delai(-5), 'passé');
+  });
+});
+
+describe('retours prolongés par un taxibus', () => {
+  const options = {
+    embarquement: 'Terminus Longueuil (porte A7)',
+    descente: 'Terminus des Promenades - STC',
+    zoneDestination: '4-A',
+    jourDeService: MARDI,
+    maintenant: instant(MARDI, enMinutes('04:00')),
+    limite: 40,
+  };
+
+  it('rend un retour par express de la journée', () => {
+    const retours = retoursAvecTaxibus(donnees, options);
+    assert.equal(retours.length, 34);
+    for (const retour of retours) {
+      assert.equal(retour.depart.arret, options.embarquement);
+      assert.equal(retour.arrivee.arret, options.descente);
+      assert.ok(retour.arrivee.instant > retour.depart.instant);
+      assert.equal(retour.zone, '1');
+    }
+  });
+
+  it('les rend dans l’ordre des départs', () => {
+    const retours = retoursAvecTaxibus(donnees, options);
+    for (let i = 1; i < retours.length; i += 1) {
+      assert.ok(retours[i].depart.instant > retours[i - 1].depart.instant);
+    }
+  });
+
+  it('mesure l’attente entre la descente et le taxibus', () => {
+    for (const retour of retoursAvecTaxibus(donnees, options)) {
+      if (!retour.taxibus) continue;
+      assert.equal(retour.attente,
+        retour.taxibus.instantDepart - retour.arrivee.instant);
+      assert.ok(retour.attente >= 5, 'la marge minimale doit être respectée');
+    }
+  });
+
+  it('signale qu’il faut réserver avant même de monter dans l’autobus', () => {
+    const dernier = retoursAvecTaxibus(donnees, options)
+      .find((r) => r.arrivee.heure === '23:18');
+    assert.equal(dernier.depart.heure, '22:20');
+    assert.equal(dernier.taxibus.heure, '00:15');
+    assert.equal(dernier.verdict.code, 'avant_embarquement');
+    assert.equal(dernier.verdict.avance, 110);
+  });
+
+  it('compte les retours à réserver avant l’embarquement', () => {
+    const avantEmbarquement = retoursAvecTaxibus(donnees, options)
+      .filter((r) => r.verdict.code === 'avant_embarquement');
+    // Six express du soir vers Contrecœur : on quitte Longueuil après 20:30,
+    // l’heure à laquelle le terminus a déjà fermé les réservations.
+    assert.equal(avantEmbarquement.length, 6);
+    for (const retour of avantEmbarquement) {
+      assert.equal(retour.taxibus.motif, 'fermeture_terminus');
+      assert.ok(retour.depart.instant > retour.taxibus.limite);
+    }
+  });
+
+  it('compte les retours à réserver avant la descente, zone par zone', () => {
+    // La proportion dépend de la zone visée : les départs de taxibus vers
+    // Contrecœur et vers Sorel-Tracy ne tombent pas aux mêmes minutes.
+    const attendu = { '1': 29, '2-A': 27, '2-B': 28, '3': 28, '4-A': 27, '4-B': 27 };
+    for (const [zone, ferme] of Object.entries(attendu)) {
+      const codes = retoursAvecTaxibus(donnees, { ...options, zoneDestination: zone })
+        .map((r) => r.verdict.code);
+      assert.equal(codes.length, 34, `zone ${zone}`);
+      const avant = codes.filter((c) => c === 'avant_arrivee'
+        || c === 'avant_embarquement').length;
+      assert.equal(avant, ferme, `zone ${zone}`);
+    }
+  });
+
+  it('ferme le verdict quand l’heure limite est déjà passée', () => {
+    const [premier] = retoursAvecTaxibus(donnees, {
+      ...options, maintenant: instant(MARDI, enMinutes('12:00')), limite: 1,
+      aPartirDe: instant(MARDI, enMinutes('05:00')),
+    });
+    assert.equal(premier.verdict.code, 'ferme');
+    assert.equal(premier.taxibus.etat.code, 'ferme');
+  });
+
+  it('ne retient que les départs postérieurs au plancher demandé', () => {
+    const midi = instant(MARDI, enMinutes('12:00'));
+    for (const retour of retoursAvecTaxibus(donnees, {
+      ...options, aPartirDe: midi,
+    })) {
+      assert.ok(retour.depart.instant >= midi);
+    }
+  });
+
+  it('rend un verdict « aucun » hors du territoire du taxibus', () => {
+    const [retour] = retoursAvecTaxibus(donnees, {
+      ...options,
+      embarquement: 'Terminus des Promenades - STC',
+      descente: 'Terminus Longueuil (porte A7)',
+      direction: 'longueuil',
+      limite: 1,
+    });
+    assert.equal(retour.zone, null);
+    assert.equal(retour.taxibus, null);
+    assert.equal(retour.verdict.code, 'aucun');
+  });
+
+  it('sait aussi partir de Saint-Roch, en zone 2-A', () => {
+    const retours = retoursAvecTaxibus(donnees, {
+      ...options,
+      descente: 'Mairie - Saint-Roch-de-Richelieu',
+      zoneDestination: null,
+      limite: 5,
+    });
+    assert.ok(retours.length > 0);
+    assert.ok(retours.every((r) => r.zone === '2-A'));
+  });
+});
+
+describe('arrêts d’une direction', () => {
+  it('les rend dans l’ordre du parcours', () => {
+    const arrets = arretsDeDirection(donnees, 'express', 'sorel', profilMardi);
+    assert.equal(arrets[0], 'Terminus Longueuil (porte A7)');
+    assert.equal(arrets[arrets.length - 1], 'Terminus des Promenades - STC');
+  });
+
+  it('rend une liste vide pour une direction inconnue', () => {
+    assert.deepEqual(
+      arretsDeDirection(donnees, 'express', 'inexistante', profilMardi), []);
   });
 });

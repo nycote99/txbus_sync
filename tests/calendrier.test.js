@@ -10,9 +10,9 @@ import { describe, it } from 'node:test';
 
 import {
   DEBUT_JOUR_SERVICE, dateDepuisNumero, dateLongue, decalerDate, depuisEpoch,
-  enHeure, enMinutes, feriesDeLAnnee, ferieDuJour, instant, instantDeDepart,
-  instantDepuisEpoch, jourDeSemaine, jourDeServiceActuel, nomDeJour,
-  numeroDeJour, profilDuJour,
+  depuisISO, enHeure, enISO, enMinutes, feriesDeLAnnee, ferieDuJour, instant,
+  instantDeDepart, instantDepuisEpoch, jourDeSemaine, jourDeServiceActuel,
+  nomDeJour, numeroDeJour, profilDuJour, versEpoch,
 } from '../assets/js/calendrier.js';
 
 import { lireHoraires } from './aide.js';
@@ -238,5 +238,64 @@ describe('lecture du temps absolu du flux', () => {
     const secondes = Date.UTC(2026, 8, 1, 23, 3) / 1000; // 19:03 heure locale
     assert.equal(instantDepuisEpoch(secondes),
       instant({ annee: 2026, mois: 9, jour: 1 }, enMinutes('19:03')));
+  });
+});
+
+describe('dates de l’adresse et du champ de date', () => {
+  it('écrit une date au format ISO', () => {
+    assert.equal(enISO({ annee: 2026, mois: 9, jour: 1 }), '2026-09-01');
+    assert.equal(enISO({ annee: 2026, mois: 12, jour: 25 }), '2026-12-25');
+  });
+
+  it('relit ce qu’elle a écrit', () => {
+    let date = { annee: 2026, mois: 1, jour: 1 };
+    for (let pas = 0; pas < 400; pas += 1) {
+      assert.deepEqual(depuisISO(enISO(date)), date);
+      date = decalerDate(date, 1);
+    }
+  });
+
+  it('refuse une date absente ou mal formée', () => {
+    for (const mauvaise of [null, '', 'demain', '2026-9-1', '20260901']) {
+      assert.equal(depuisISO(mauvaise), null, `refusé : ${mauvaise}`);
+    }
+  });
+
+  it('refuse une date qui n’existe pas plutôt que de la décaler', () => {
+    assert.equal(depuisISO('2026-02-31'), null);
+    assert.equal(depuisISO('2026-13-01'), null);
+    assert.equal(depuisISO('2026-02-29'), null);   // 2026 n’est pas bissextile
+    assert.deepEqual(depuisISO('2028-02-29'), { annee: 2028, mois: 2, jour: 29 });
+  });
+});
+
+describe('conversion vers l’instant absolu, pour les rappels', () => {
+  it('convertit une heure d’été (UTC−4)', () => {
+    const epoch = versEpoch({ annee: 2026, mois: 9, jour: 1 }, enMinutes('20:30'));
+    assert.equal(new Date(epoch).toISOString(), '2026-09-02T00:30:00.000Z');
+  });
+
+  it('convertit une heure d’hiver (UTC−5)', () => {
+    const epoch = versEpoch({ annee: 2026, mois: 12, jour: 15 }, enMinutes('20:30'));
+    assert.equal(new Date(epoch).toISOString(), '2026-12-16T01:30:00.000Z');
+  });
+
+  it('fait l’aller-retour avec la lecture du temps du flux', () => {
+    for (const [mois, jour, heure] of [[1, 15, '07:45'], [6, 30, '23:59'],
+      [11, 2, '00:15'], [3, 20, '16:45']]) {
+      const date = { annee: 2026, mois, jour };
+      const epoch = versEpoch(date, enMinutes(heure));
+      const relu = depuisEpoch(epoch / 1000);
+      assert.deepEqual(relu.date, date, `${jour}/${mois} ${heure}`);
+      assert.equal(enHeure(relu.minutes), heure, `${jour}/${mois} ${heure}`);
+    }
+  });
+
+  it('reste juste de part et d’autre du changement d’heure', () => {
+    // Retour à l’heure normale : 1er novembre 2026 à 2 h du matin.
+    const veille = versEpoch({ annee: 2026, mois: 10, jour: 31 }, enMinutes('23:00'));
+    const lendemain = versEpoch({ annee: 2026, mois: 11, jour: 1 }, enMinutes('23:00'));
+    // Vingt-cinq heures séparent ces deux instants, pas vingt-quatre.
+    assert.equal((lendemain - veille) / 3600000, 25);
   });
 });

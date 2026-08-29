@@ -74,6 +74,12 @@ export function voyages(donnees, ligne, direction, jourDeService, profil) {
   return resultat;
 }
 
+/** Arrets d'une direction, dans l'ordre du parcours, pour un jour donne. */
+export function arretsDeDirection(donnees, ligne, direction, profil) {
+  const bloc = grille(donnees, ligne, direction, profil);
+  return bloc ? bloc.arrets.map((arret) => arret.nom) : [];
+}
+
 /** Liste des arrets d'une ligne, toutes directions confondues. */
 export function arretsDeLigne(donnees, ligne) {
   const vus = new Map();
@@ -330,6 +336,85 @@ export function departsTaxibus(donnees, options) {
 
   return resultat.sort((a, b) => a.instantDepart - b.instantDepart)
     .slice(0, limite);
+}
+
+/**
+ * Retours en autobus prolonges par un taxibus.
+ *
+ * C'est le calcul qui donne son sens a l'application : sur la quasi-totalite
+ * des retours de Longueuil, l'heure limite du taxibus tombe avant qu'on ne
+ * descende de l'autobus, et souvent avant qu'on n'y monte. Chaque retour porte
+ * donc un verdict qui dit *quand* reserver, pas seulement si c'est encore
+ * possible.
+ */
+export function retoursAvecTaxibus(donnees, options) {
+  const {
+    ligne = 'express', direction = 'sorel', embarquement, descente,
+    zoneDestination = null, jourDeService, maintenant: instantCourant,
+    tempsReel = null, correspondance = 5, limite = 12, aPartirDe = null,
+  } = options;
+
+  const profil = profilDuJour(jourDeService, donnees);
+  const zone = donnees.zones_des_arrets[descente];
+  const plancher = aPartirDe === null ? -Infinity : aPartirDe;
+  const resultat = [];
+
+  for (const voyage of voyages(donnees, ligne, direction, jourDeService, profil)) {
+    const depart = voyage.passages.find((p) => p.arret === embarquement);
+    const arrivee = voyage.passages.find((p) => p.arret === descente);
+    if (!depart || !arrivee || arrivee.instant <= depart.instant) continue;
+    if (depart.instant < plancher) continue;
+
+    const departReel = passageReel(tempsReel, voyage, depart);
+    const arriveeReelle = passageReel(tempsReel, voyage, arrivee);
+
+    const taxibus = zone ? departsTaxibus(donnees, {
+      origine: zone,
+      destination: zoneDestination,
+      maintenant: instantCourant,
+      depuis: arriveeReelle.instant + correspondance,
+      jourDeService,
+      limite: 1,
+    })[0] || null : null;
+
+    resultat.push({
+      voyage,
+      depart,
+      arrivee,
+      departReel,
+      arriveeReelle,
+      zone: zone || null,
+      zoneDestination,
+      taxibus,
+      attente: taxibus ? taxibus.instantDepart - arriveeReelle.instant : null,
+      verdict: verdictDeReservation(taxibus, departReel, arriveeReelle),
+    });
+    if (resultat.length >= limite) break;
+  }
+  return resultat;
+}
+
+/**
+ * Quand faut-il reserver ce taxibus, par rapport au trajet en autobus ?
+ * Les deux cas qui comptent sont ceux ou la reponse est « plus tot que vous ne
+ * le croyez » : avant de descendre, et pire, avant meme de monter.
+ */
+export function verdictDeReservation(taxibus, departReel, arriveeReelle) {
+  if (!taxibus) return { code: 'aucun' };
+  if (taxibus.etat.code === 'ferme') return { code: 'ferme' };
+  if (taxibus.limite < departReel.instant) {
+    return {
+      code: 'avant_embarquement',
+      avance: departReel.instant - taxibus.limite,
+    };
+  }
+  if (taxibus.limite < arriveeReelle.instant) {
+    return {
+      code: 'avant_arrivee',
+      avance: arriveeReelle.instant - taxibus.limite,
+    };
+  }
+  return { code: 'apres_arrivee' };
 }
 
 /** Duree relative lisible : « dans 7 min », « dans 2 h 15 », « demain ». */

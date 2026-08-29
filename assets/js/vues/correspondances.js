@@ -8,10 +8,12 @@
  * partir*, pas en arrivant. L'application le dit explicitement.
  */
 
-import { h } from '../dom.js';
+import { h, champSelect } from '../dom.js';
 import { dateLongue, enHeure } from '../calendrier.js';
-import { delai, departsTaxibus, passageReel } from '../reseau.js';
-import { preferences } from '../preferences.js';
+import {
+  delai, departsTaxibus, destinationsDepuis, passageReel,
+} from '../reseau.js';
+import { preferences, definir } from '../preferences.js';
 import { carte, messageVide } from './communs.js';
 
 /** Minutes a prevoir entre la descente de l'autobus et le depart du taxibus. */
@@ -33,9 +35,15 @@ export function carteCorrespondances(contexte, voyage, maintenantInstant) {
   const prefs = preferences();
   const zoneArrivee = donnees.zones.find((z) => z.code === zone);
 
+  // Le choix de la destination se fait ici, là où on s'en sert, plutôt que
+  // dans l'onglet Taxibus comme c'était le cas.
+  const destinations = destinationsDepuis(donnees, zone, contexte.profil.service);
+  const zoneDestination = destinations.some((z) => z.code === prefs.zoneDestination)
+    ? prefs.zoneDestination : '';
+
   const departs = departsTaxibus(donnees, {
     origine: zone,
-    destination: prefs.zoneDestination || null,
+    destination: zoneDestination || null,
     maintenant: maintenantInstant,
     depuis: instantArrivee + CORRESPONDANCE_MINIMALE,
     jourDeService,
@@ -50,14 +58,25 @@ export function carteCorrespondances(contexte, voyage, maintenantInstant) {
     `Départs de taxibus à partir de ${CORRESPONDANCE_MINIMALE} minutes `
     + 'après votre descente.');
 
+  const selecteur = champSelect('Je poursuis vers',
+    [{ valeur: '', texte: 'N’importe quelle zone' }].concat(
+      destinations.map((z) => ({
+        valeur: z.code,
+        texte: `${z.nom} — ${z.municipalites.join(', ')}`,
+      }))),
+    zoneDestination, (valeur) => {
+      definir({ zoneDestination: valeur });
+      contexte.rafraichir();
+    });
+
   const corps = departs.length
-    ? h('div.pile.pile--serre', entete,
+    ? h('div.pile.pile--serre', selecteur, entete,
         h('ul.passages', departs.map((depart) =>
           h('li', ligneCorrespondance(depart, instantArrivee, maintenantInstant)))),
         h('a.bouton.bouton--principal.bouton--pleine', {
           href: donnees.liens.reservation, target: '_blank', rel: 'noopener',
         }, 'Réserver maintenant sur le portail de la STC'))
-    : h('div.pile.pile--serre', entete,
+    : h('div.pile.pile--serre', selecteur, entete,
         messageVide('Aucun départ de taxibus après cette arrivée.'));
 
   return carte('Correspondance taxibus', corps);

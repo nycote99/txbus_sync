@@ -206,6 +206,51 @@ export function profilDuJour(date, donnees) {
   };
 }
 
+/** 'AAAA-MM-JJ', la forme qu'attend un champ de date et qu'on met dans l'adresse. */
+export function enISO(date) {
+  return `${date.annee}-${String(date.mois).padStart(2, '0')}`
+    + `-${String(date.jour).padStart(2, '0')}`;
+}
+
+/** Lit une date ISO ; renvoie null si elle est absente ou mal formée. */
+export function depuisISO(texte) {
+  const trouve = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texte || '');
+  if (!trouve) return null;
+  const date = { annee: +trouve[1], mois: +trouve[2], jour: +trouve[3] };
+  // Une date inventée comme 2026-02-31 doit être refusée, pas glissée au 3 mars.
+  return enISO(dateDepuisNumero(numeroDeJour(date))) === texte ? date : null;
+}
+
+/**
+ * Instant absolu, en millisecondes epoch, d'une heure murale de Sorel-Tracy.
+ *
+ * Sert a poser un rappel dans un calendrier : le fichier .ics transporte des
+ * heures UTC, alors que tout le reste de l'application raisonne en heure
+ * murale. La conversion passe par l'ecart que le fuseau applique a cet
+ * instant-la, changement d'heure compris.
+ */
+export function versEpoch(date, minutes) {
+  const suppose = Date.UTC(date.annee, date.mois - 1, date.jour, 0, 0)
+    + Math.round(minutes) * 60000;
+  // Deux passes suffisent : la premiere trouve l'ecart, la seconde le confirme
+  // meme si l'on tombe dans l'heure du changement.
+  let resultat = suppose;
+  for (let passe = 0; passe < 2; passe += 1) {
+    resultat = suppose + (resultat - Date.UTC(...champsUtcLocaux(resultat)));
+  }
+  return resultat;
+}
+
+/** Champs d'une date lue dans le fuseau de Sorel-Tracy, prets pour Date.UTC. */
+function champsUtcLocaux(millisecondes) {
+  const parties = new Intl.DateTimeFormat('en-CA', {
+    timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).formatToParts(new Date(millisecondes));
+  const p = Object.fromEntries(parties.map((x) => [x.type, x.value]));
+  return [+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second];
+}
+
 export function nomDeJour(date) {
   return JOURS[jourDeSemaine(date)];
 }

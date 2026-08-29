@@ -720,3 +720,70 @@ a { color: var(--marque); }
   color: var(--alerte);
   font-weight: 650;
 }
+
+/* --- Mon retour ---------------------------------------------------------- */
+
+.retour {
+  display: grid;
+  gap: .45rem;
+  padding: .9rem 1rem 1rem;
+}
+.retour--clos { opacity: .6; }
+
+.retour__trajet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .3rem .5rem;
+}
+
+.retour__heure {
+  font-family: var(--chiffres);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+  font-weight: 620;
+}
+
+.retour__fleche { color: var(--encre-douce); font-size: .95rem; }
+
+.retour__suite {
+  margin: 0;
+  font-size: .88rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .2rem .35rem;
+  overflow-wrap: anywhere;
+}
+
+.retour__limite {
+  margin: 0;
+  font-size: .82rem;
+  line-height: 1.5;
+  color: var(--encre-douce);
+  overflow-wrap: anywhere;
+}
+.retour__limite strong { color: var(--encre); }
+
+.retour__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .25rem;
+}
+.retour__actions .bouton { flex: 1 1 9rem; }
+
+.champ .note { font-size: .74rem; }
+
+.lien-discret {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: .74rem;
+  color: var(--marque);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

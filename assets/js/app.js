@@ -8,18 +8,20 @@
 
 import { h, vider } from './dom.js';
 import {
-  dateLongue, enHeure, jourDeServiceActuel, maintenant, numeroDeJour,
-  profilDuJour,
+  dateLongue, depuisISO, enHeure, enISO, jourDeServiceActuel, maintenant,
+  numeroDeJour, profilDuJour,
 } from './calendrier.js';
 import { DELAI_RAFRAICHISSEMENT, chargerTempsReel } from './tempsreel.js';
 import { preferences, definir } from './preferences.js';
 import { vueMaintenant } from './vues/maintenant.js';
+import { vueRetour } from './vues/retour.js';
 import { vueAutobus } from './vues/autobus.js';
 import { vueTaxibus } from './vues/taxibus.js';
 import { vueInfos } from './vues/infos.js';
 
 const VUES = {
   maintenant: { titre: 'Maintenant', rendre: vueMaintenant },
+  retour: { titre: 'Mon retour', rendre: vueRetour },
   autobus: { titre: 'Autobus', rendre: vueAutobus },
   taxibus: { titre: 'Taxibus', rendre: vueTaxibus },
   infos: { titre: 'Infos', rendre: vueInfos },
@@ -60,12 +62,17 @@ async function demarrer() {
   document.getElementById('version-donnees').textContent =
     `Horaires en vigueur depuis le ${donnees.version_horaire}.`;
 
-  vueActive = VUES[lireAncre()] ? lireAncre() : preferences().vue;
+  const ancre = lireAncre();
+  vueActive = VUES[ancre.vue] ? ancre.vue : preferences().vue;
   if (!VUES[vueActive]) vueActive = 'maintenant';
+  etatVue = ancre.etat;
 
   window.addEventListener('hashchange', () => {
     const cible = lireAncre();
-    if (VUES[cible] && cible !== vueActive) aller(cible);
+    if (!VUES[cible.vue]) return;
+    vueActive = cible.vue;
+    etatVue = cible.etat;
+    dessiner();
   });
 
   dessiner();
@@ -107,24 +114,28 @@ function resume(etat) {
 function contexte() {
   const horloge = maintenant();
   const jourDeService = jourDeServiceActuel(horloge);
-  const horsAujourdHui = numeroDeJour(jourDeService)
-    !== numeroDeJour(jourDeServiceActuel(horloge));
+  const jourChoisi = depuisISO(etatVue.jour);
+  const jourAffiche = jourChoisi || jourDeService;
+  const estAujourdHui = numeroDeJour(jourAffiche) === numeroDeJour(jourDeService);
 
   return {
     donnees,
     reference,
+    estAujourdHui,
     // Le flux ne decrit que les vehicules du moment : on ne le presente pas
     // comme la verite d'une journee qu'on ne vit pas.
-    tempsReel: horsAujourdHui ? null : tempsReel,
+    tempsReel: estAujourdHui ? tempsReel : null,
     horloge,
-    jourDeService,
-    profil: profilDuJour(jourDeService, donnees),
+    jourDeService: jourAffiche,
+    profil: profilDuJour(jourAffiche, donnees),
     etatVue,
     aller,
     rafraichir: (modifications) => {
       if (modifications) etatVue = { ...etatVue, ...modifications };
       dessiner();
     },
+    partager: () => `${window.location.origin}${window.location.pathname}`
+      + `${window.location.hash}`,
   };
 }
 
@@ -137,6 +148,7 @@ function dessiner() {
   const positionDefilement = window.scrollY;
   vider(conteneur).append(VUES[vueActive].rendre(ctx));
   window.scrollTo({ top: positionDefilement });
+  ecrireAncre(vueActive, etatVue);
 
   document.querySelectorAll('.nav__lien').forEach((bouton) => {
     const actif = bouton.dataset.vue === vueActive;
@@ -151,14 +163,46 @@ function aller(vue, modifications) {
   vueActive = vue;
   etatVue = modifications ? { ...etatVue, ...modifications } : {};
   definir({ vue });
-  if (lireAncre() !== vue) window.location.hash = vue;
   dessiner();
   document.getElementById('contenu').focus({ preventScroll: true });
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+/**
+ * L'adresse porte la vue et l'etat qui la definit, pour qu'un ecran soit
+ * citable : « mon retour de jeudi » s'envoie par message.
+ */
+const CLES_PARTAGEABLES = ['jour', 'embarquement', 'descente', 'zoneDestination',
+                           'ligne', 'arret', 'direction', 'voyage'];
+
 function lireAncre() {
-  return window.location.hash.replace('#', '');
+  const brut = window.location.hash.replace(/^#/, '');
+  const separation = brut.indexOf('?');
+  if (separation === -1) return { vue: brut, etat: {} };
+
+  const parametres = new URLSearchParams(brut.slice(separation + 1));
+  const etat = {};
+  CLES_PARTAGEABLES.forEach((cle) => {
+    if (!parametres.has(cle)) return;
+    const valeur = parametres.get(cle);
+    etat[cle] = cle === 'voyage' ? Number(valeur) : valeur;
+  });
+  return { vue: brut.slice(0, separation), etat };
+}
+
+function ecrireAncre(vue, etat) {
+  const parametres = new URLSearchParams();
+  CLES_PARTAGEABLES.forEach((cle) => {
+    const valeur = etat[cle];
+    if (valeur !== undefined && valeur !== null && valeur !== '') {
+      parametres.set(cle, String(valeur));
+    }
+  });
+  const suite = parametres.toString();
+  const ancre = `#${vue}${suite ? `?${suite}` : ''}`;
+  if (window.location.hash !== ancre) {
+    window.history.replaceState(null, '', ancre);
+  }
 }
 
 function brancherNavigation() {
@@ -171,11 +215,12 @@ function majHorloge(horloge = maintenant()) {
   elementHorloge.textContent = enHeure(horloge.minutes);
 }
 
-function majEtatDuJour({ jourDeService, profil }) {
+function majEtatDuJour({ jourDeService, profil, estAujourdHui }) {
   const service = profil.service === 'semaine' ? 'horaire de semaine'
     : 'horaire de fin de semaine';
-  elementEtatDuJour.textContent =
-    `${dateLongue(jourDeService)} · ${profil.ferie ? profil.ferie.nom : service}`;
+  elementEtatDuJour.textContent = `${dateLongue(jourDeService)}`
+    + `${estAujourdHui ? '' : ' (autre jour)'} · `
+    + `${profil.ferie ? profil.ferie.nom : service}`;
 }
 
 // --- Theme -------------------------------------------------------------------
