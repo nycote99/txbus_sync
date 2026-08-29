@@ -1,0 +1,24 @@
+{
+  "name": "Sorel Transit — autobus et taxibus STC",
+  "short_name": "Sorel Transit",
+  "description": "Prochains passages, suivi estimé des véhicules, départs de taxibus et heures limites de réservation de la Société de transport Pierre-De Saurel.",
+  "lang": "fr-CA",
+  "dir": "ltr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f6f9",
+  "theme_color": "#0b4f79",
+  "categories": ["travel", "navigation", "utilities"],
+  "icons": [
+    { "src": "assets/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "assets/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icone-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Départs de taxibus", "url": "#taxibus" },
+    { "name": "Prochains autobus", "url": "#autobus" }
+  ]
+}
