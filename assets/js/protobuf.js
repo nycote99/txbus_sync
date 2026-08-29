@@ -68,10 +68,27 @@ function lireVarint(octets, position) {
     const octet = octets[position + i];
     if (octet === undefined) throw new Error('protobuf : varint tronqué');
     resultat += (octet & 0x7f) * decalage;
-    if ((octet & 0x80) === 0) return [resultat, position + i + 1];
+    if ((octet & 0x80) === 0) {
+      // Au-dela de 2^53 un nombre flottant ne represente plus chaque entier :
+      // 2^64 - 5, l'encodage d'un retard de -5 secondes, s'arrondirait a 2^64
+      // et donnerait 0. On relit alors la valeur en entier long.
+      if (resultat > Number.MAX_SAFE_INTEGER) {
+        return [lireVarintLong(octets, position, i + 1), position + i + 1];
+      }
+      return [resultat, position + i + 1];
+    }
     decalage *= 128;
   }
   throw new Error('protobuf : varint trop long');
+}
+
+/** Relecture exacte d'un varint long, du dernier groupe de sept bits au premier. */
+function lireVarintLong(octets, position, longueur) {
+  let resultat = 0n;
+  for (let i = longueur - 1; i >= 0; i -= 1) {
+    resultat = (resultat << 7n) | BigInt(octets[position + i] & 0x7f);
+  }
+  return resultat;
 }
 
 const decodeurTexte = new TextDecoder('utf-8');
@@ -102,17 +119,22 @@ export function sousMessages(message, numero) {
 
 export function entier(message, numero) {
   const valeur = champ(message, numero);
+  if (typeof valeur === 'bigint') return Number(valeur);
   return typeof valeur === 'number' ? valeur : undefined;
 }
 
 /**
  * Entier signe encode en varint. Protobuf represente les negatifs sur 64 bits
- * en complement a deux ; c'est le cas du champ `delay` de TripUpdate.
+ * en complement a deux ; c'est le cas du champ `delay` de TripUpdate, qui vaut
+ * par exemple 2^64 - 5 pour une avance de cinq secondes.
  */
 export function entierSigne(message, numero) {
-  const valeur = entier(message, numero);
+  const valeur = champ(message, numero);
   if (valeur === undefined) return undefined;
-  return valeur > 2 ** 63 ? valeur - 2 ** 64 : valeur;
+  if (typeof valeur === 'bigint') {
+    return Number(valeur >= 2n ** 63n ? valeur - 2n ** 64n : valeur);
+  }
+  return typeof valeur === 'number' ? valeur : undefined;
 }
 
 /** Champ flottant (fixe32). */

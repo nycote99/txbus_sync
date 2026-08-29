@@ -336,7 +336,7 @@ export function departsTaxibus(donnees, options) {
 export function delai(minutes) {
   const m = Math.round(minutes);
   if (m < 0) return 'passé';
-  if (m === 0) return "à l'instant";
+  if (m === 0) return 'à l’instant';
   if (m < 60) return `${m} min`;
   const heures = Math.floor(m / 60);
   if (heures < 12) return `${heures} h ${String(m % 60).padStart(2, '0')}`;

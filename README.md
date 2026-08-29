@@ -65,6 +65,7 @@ data/horaires.json          horaires extraits des PDF officiels
 data/reseau-gtfs.json       table qui nomme les identifiants du flux temps réel
 tools/parse_horaires.py     extraction PDF → JSON
 tools/parse_gtfs.py         extraction GTFS statique → table de référence
+tests/                      tests unitaires (node --test, sans dépendance)
 tools/verifier_donnees.py   contrôles de cohérence des horaires
 tools/verifier_gtfs.py      contrôles sur la table de référence
 tools/verifier_service_worker.py  contrôle de la coquille hors ligne
@@ -139,10 +140,28 @@ c'est elle que `parse_gtfs.py` utilise.
 request* et sur `main` :
 
 ```sh
+node --test tests/*.test.js               # logique du calendrier et des limites
 python3 tools/verifier_donnees.py         # cohérence des horaires extraits
 python3 tools/verifier_gtfs.py            # cohérence de la table de référence
 python3 tools/verifier_service_worker.py  # complétude de la coquille hors ligne
 ```
+
+Les tests couvrent ce que l'usager ne peut pas vérifier lui-même : le calcul
+des jours fériés, la journée de service qui bascule à 3 h du matin, et surtout
+l'heure limite de réservation du taxibus, dont la fiche horaire n'imprime
+jamais le résultat. Les quinze arrivées du soir depuis Longueuil y sont figées
+comme cas de référence, dont celle de 23:18 dont la réservation ferme à 20:30 —
+une heure cinquante avant l'embarquement à Longueuil.
+
+Leur pouvoir de détection a été mesuré en cassant volontairement la règle de
+fermeture du terminus, le délai de trente minutes, l'heure de bascule du jour
+de service, le calcul de la fête des Patriotes, la lecture des entiers longs et
+le rapprochement des noms d'arrêts : chacune des six régressions fait échouer
+la suite.
+
+Le fichier `package.json` ne sert qu'à déclarer les fichiers `.js` comme
+modules ES, pour que node les charge comme le fait le navigateur. Le projet n'a
+toujours aucune dépendance.
 
 Le contrôle de la coquille attrape le module oublié dans `service-worker.js` :
 la page continue de fonctionner en développement, et casse chez l'usager qui la
