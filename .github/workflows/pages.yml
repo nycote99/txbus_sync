@@ -26,6 +26,9 @@ jobs:
       - name: Vérifier les données d'horaire
         run: python3 tools/verifier_donnees.py
 
+      - name: Vérifier la coquille hors ligne
+        run: python3 tools/verifier_service_worker.py
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3

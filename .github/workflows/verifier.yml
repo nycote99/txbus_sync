@@ -1,0 +1,27 @@
+name: Vérifier
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  donnees:
+    name: Cohérence des horaires
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Contrôler data/horaires.json
+        run: python3 tools/verifier_donnees.py
+
+      - name: Vérifier que la coquille hors ligne liste tous les modules
+        run: python3 tools/verifier_service_worker.py

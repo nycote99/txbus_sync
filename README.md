@@ -48,7 +48,8 @@ assets/js/reseau.js         requêtes d'horaire, position estimée, heures limit
 assets/js/vues/             une vue par onglet
 data/horaires.json          horaires extraits des PDF officiels
 tools/parse_horaires.py     extraction PDF → JSON
-tools/verifier_donnees.py   contrôles de cohérence (exécutés par la CI)
+tools/verifier_donnees.py   contrôles de cohérence des horaires
+tools/verifier_service_worker.py  contrôle de la coquille hors ligne
 ```
 
 Aucune dépendance, aucune étape de compilation : les fichiers publiés sont les
@@ -90,6 +91,20 @@ autant de symptômes d’une mise en page qui aurait changé.
 
 Les données de référence qui ne figurent pas dans les grilles — zones, tarifs,
 règles, coordonnées — sont tenues à la main en fin de `parse_horaires.py`.
+
+## Vérifications
+
+`.github/workflows/verifier.yml` exécute les deux contrôles sur chaque *pull
+request* et sur `main` :
+
+```sh
+python3 tools/verifier_donnees.py         # cohérence des horaires extraits
+python3 tools/verifier_service_worker.py  # complétude de la coquille hors ligne
+```
+
+Le second attrape le module oublié dans `service-worker.js` : la page continue
+de fonctionner en développement, et casse chez l'usager qui la rouvre sans
+réseau à un arrêt.
 
 ## Déploiement
 
