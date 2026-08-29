@@ -9,7 +9,7 @@ import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
 import {
-  enHeure, enMinutes, instant, profilDuJour,
+  dateDepuisNumero, enHeure, enMinutes, instant, profilDuJour, versEpoch,
 } from '../assets/js/calendrier.js';
 import {
   LIGNES, arretsDeDirection, arretsDeLigne, delai, departsTaxibus,
@@ -444,5 +444,139 @@ describe('arrêts d’une direction', () => {
   it('rend une liste vide pour une direction inconnue', () => {
     assert.deepEqual(
       arretsDeDirection(donnees, 'express', 'inexistante', profilMardi), []);
+  });
+});
+
+describe('correspondance mise à l’épreuve du temps réel', () => {
+  const base = {
+    embarquement: 'Terminus Longueuil (porte A7)',
+    descente: 'Terminus des Promenades - STC',
+    zoneDestination: '1',
+    jourDeService: MARDI,
+    maintenant: instant(MARDI, enMinutes('04:00')),
+    limite: 40,
+  };
+
+  /**
+   * Flux fictif : le voyage nommé arrive avec le retard demandé. Le reste de
+   * l'application ne saurait pas distinguer ce flux d'un vrai.
+   */
+  function fluxAvecRetard(heureDepart, retardMinutes, annule = false) {
+    const voyage = voyages(donnees, 'express', 'sorel', MARDI, profilMardi)
+      .find((v) => v.depart.heure === heureDepart);
+    // Le flux transporte des secondes epoch, pas les minutes internes de
+    // l'application : la fixture doit faire la même conversion que Zenbus.
+    const previsions = voyage.passages.map((passage) => {
+      const jour = Math.floor(passage.instant / 1440);
+      const epoch = versEpoch(dateDepuisNumero(jour),
+        passage.instant - jour * 1440 + retardMinutes);
+      return { arret: passage.arret, heure: epoch / 1000 };
+    });
+    return {
+      horodatage: 0,
+      vehicules: [{
+        voyageId: 'essai', ligne: 'express', direction: 'sorel',
+        depart: heureDepart, arret: voyage.depart.arret, statut: 'en_route',
+      }],
+      previsions: new Map([['essai', previsions]]),
+      alertes: [],
+      annulations: annule
+        ? new Map([[`express|sorel|${heureDepart}`, {}]]) : new Map(),
+    };
+  }
+
+  it('mesure le jeu réel, attente moins battement', () => {
+    // L’arrivée de 16:39 laisse six minutes avant le taxibus de 16:45 : en
+    // retirant les cinq minutes de battement, il ne reste qu’une minute.
+    const retour = retoursAvecTaxibus(donnees, base)
+      .find((r) => r.arrivee.heure === '16:39');
+    assert.equal(retour.marge, 6);
+    assert.equal(retour.jeu, 1);
+    assert.equal(retour.margeServree, true);
+    assert.equal(retour.correspondancePerdue, false);
+  });
+
+  it('ne signale pas une correspondance confortable', () => {
+    const retour = retoursAvecTaxibus(donnees, base)
+      .find((r) => r.jeu !== null && r.jeu > 15);
+    assert.ok(retour, 'aucune correspondance large trouvée');
+    assert.equal(retour.margeServree, false);
+  });
+
+  it('déclare la correspondance perdue quand le retard dépasse la marge', () => {
+    // Six minutes de marge, huit minutes de retard : le taxibus est manqué.
+    const retours = retoursAvecTaxibus(donnees, {
+      ...base, tempsReel: fluxAvecRetard('15:35', 8),
+    });
+    const retour = retours.find((r) => r.depart.heure === '15:35');
+
+    assert.equal(retour.arriveeReelle.direct, true);
+    assert.equal(retour.arriveeReelle.ecart, 8);
+    assert.equal(retour.correspondancePerdue, true);
+    assert.equal(retour.taxibusPrevu.heure, '16:45');
+    assert.notEqual(retour.taxibus.heure, retour.taxibusPrevu.heure);
+    assert.ok(retour.taxibus.instantDepart > retour.taxibusPrevu.instantDepart);
+  });
+
+  it('garde la correspondance quand le retard tient dans le jeu', () => {
+    // On choisit un retour largement pourvu, puis un retard qui y tient.
+    const large = retoursAvecTaxibus(donnees, base)
+      .find((r) => r.jeu !== null && r.jeu >= 10);
+    const retard = large.jeu - 2;
+
+    const retour = retoursAvecTaxibus(donnees, {
+      ...base, tempsReel: fluxAvecRetard(large.depart.heure, retard),
+    }).find((r) => r.depart.heure === large.depart.heure);
+
+    assert.equal(retour.arriveeReelle.ecart, retard);
+    assert.equal(retour.correspondancePerdue, false);
+    assert.equal(retour.taxibus.heure, retour.taxibusPrevu.heure);
+  });
+
+  it('perd la correspondance dès que le retard dépasse le jeu, d’une minute', () => {
+    const serre = retoursAvecTaxibus(donnees, base)
+      .find((r) => r.jeu === 1);
+
+    const tenu = retoursAvecTaxibus(donnees, {
+      ...base, tempsReel: fluxAvecRetard(serre.depart.heure, 1),
+    }).find((r) => r.depart.heure === serre.depart.heure);
+    assert.equal(tenu.correspondancePerdue, false);
+
+    const perdu = retoursAvecTaxibus(donnees, {
+      ...base, tempsReel: fluxAvecRetard(serre.depart.heure, 2),
+    }).find((r) => r.depart.heure === serre.depart.heure);
+    assert.equal(perdu.correspondancePerdue, true);
+  });
+
+  it('ne déclare rien de perdu quand une avance rapproche le taxibus', () => {
+    const retour = retoursAvecTaxibus(donnees, {
+      ...base, tempsReel: fluxAvecRetard('15:35', -4),
+    }).find((r) => r.depart.heure === '15:35');
+    assert.equal(retour.arriveeReelle.ecart, -4);
+    assert.equal(retour.taxibus.heure, retour.taxibusPrevu.heure);
+  });
+
+  it('marque un voyage annulé et lui refuse tout verdict de réservation', () => {
+    const retour = retoursAvecTaxibus(donnees, {
+      ...base, tempsReel: fluxAvecRetard('15:35', 0, true),
+    }).find((r) => r.depart.heure === '15:35');
+
+    assert.equal(retour.annule, true);
+    assert.equal(retour.verdict.code, 'annule');
+  });
+
+  it('laisse les autres voyages intacts quand un seul est annulé', () => {
+    const retours = retoursAvecTaxibus(donnees, {
+      ...base, tempsReel: fluxAvecRetard('15:35', 0, true),
+    });
+    assert.equal(retours.filter((r) => r.annule).length, 1);
+    assert.ok(retours.filter((r) => !r.annule).length > 30);
+  });
+
+  it('ne voit aucune annulation sans flux', () => {
+    for (const retour of retoursAvecTaxibus(donnees, base)) {
+      assert.equal(retour.annule, false);
+      assert.notEqual(retour.verdict.code, 'annule');
+    }
   });
 });

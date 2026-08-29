@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import { LIGNES, delai, passageReel, position } from '../reseau.js';
 import { dateLongue, enHeure } from '../calendrier.js';
-import { memeArret, vehiculeDuVoyage } from '../tempsreel.js';
+import { memeArret, vehiculeDuVoyage, voyageAnnule } from '../tempsreel.js';
 
 export function pastilleLigne(ligne, circuit) {
   const info = LIGNES[ligne];
@@ -34,24 +34,29 @@ export function messageVide(texte) {
  * affiche l'heure reellement prevue et l'ecart avec l'horaire publie.
  */
 export function elementPassage(entree, instantCourant, auClic, etat) {
-  const { voyage, passage, profil } = entree;
+  const { voyage, passage } = entree;
   const direction = LIGNES[voyage.ligne].directions[voyage.direction];
   const reel = passageReel(etat, voyage, passage);
   const dansMinutes = reel.instant - instantCourant;
+  const annule = voyageAnnule(etat, voyage);
 
   return h('li',
-    h('button.passage', { type: 'button', onclick: () => auClic && auClic(entree) },
+    h(`button.passage${annule ? '.passage--annule' : ''}`, {
+      type: 'button', onclick: () => auClic && auClic(entree),
+    },
       h('span.passage__heure', reel.heure),
       h('span.passage__detail',
-        h('span.passage__titre', direction),
+        h('span.passage__titre', direction,
+          annule ? [' ', h('span.pastille.pastille--arret', 'Annulé')] : null),
         h('span.passage__meta',
           pastilleLigne(voyage.ligne, voyage.circuit),
           ' ',
           voyage.arrivee.arret !== passage.arret
             ? `vers ${voyage.arrivee.arret}` : 'terminus',
-          reel.direct ? [' ', mentionEcart(reel, passage)] : null)),
-      h('span.passage__delai', delai(dansMinutes),
-        h('small', reel.direct ? 'en direct' : jourRelatif(entree)))));
+          !annule && reel.direct ? [' ', mentionEcart(reel, passage)] : null)),
+      h('span.passage__delai', annule ? '—' : delai(dansMinutes),
+        h('small', annule ? 'supprimé'
+          : (reel.direct ? 'en direct' : jourRelatif(entree))))));
 }
 
 /** « à l’heure », « +4 min », « −2 min » par rapport a la fiche horaire. */

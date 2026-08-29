@@ -27,6 +27,7 @@ const F = {
   voyageId: 1,
   voyageDepart: 2,
   voyageDate: 3,
+  voyageRelation: 4,
   voyageRoute: 5,
   vehiculeVoyage: 1,
   vehiculePosition: 2,
@@ -45,14 +46,26 @@ const F = {
   arretArrivee: 2,
   arretDepart: 3,
   arretId: 4,
+  arretRelation: 5,
   evenementRetard: 1,
   evenementHeure: 2,
+  alerteCibles: 5,
   alerteCause: 6,
   alerteTitre: 10,
   alerteTexte: 11,
+  cibleAgence: 1,
+  cibleRoute: 2,
+  cibleVoyage: 4,
+  cibleArret: 5,
   traductions: 1,
   traductionTexte: 1,
 };
+
+/** TripDescriptor.ScheduleRelationship : 3 = CANCELED, 7 = DELETED. */
+const VOYAGES_SUPPRIMES = new Set([3, 7]);
+
+/** StopTimeUpdate.ScheduleRelationship : 1 = SKIPPED. */
+const ARRET_SAUTE = 1;
 
 /** VehiclePosition.VehicleStopStatus */
 const STATUTS = { 0: 'approche', 1: 'a_l_arret', 2: 'en_route' };
@@ -90,26 +103,93 @@ function interpreter(flux, reference) {
 
   const vehicules = [];
   const previsions = new Map();
+  // Les previsions indexees par ligne, direction et heure de depart : c'est le
+  // seul index qui fonctionne quand le flux publie des mises a jour de voyage
+  // sans position de vehicule, ce que rien n'interdit.
+  const previsionsParVoyage = new Map();
   const alertes = [];
+  const annulations = new Map();
 
   sousMessages(flux, F.fluxEntite).forEach((entite) => {
     const vehicule = sousMessage(entite, F.entiteVehicule);
-    if (vehicule) vehicules.push(lireVehicule(entite, vehicule, reference));
+    if (vehicule) {
+      const lu = lireVehicule(entite, vehicule, reference);
+      vehicules.push(lu);
+      noterAnnulation(annulations, sousMessage(vehicule, F.vehiculeVoyage),
+        reference, lu);
+    }
 
     const miseAJour = sousMessage(entite, F.entiteMiseAJour);
     if (miseAJour) {
       const voyage = sousMessage(miseAJour, F.majVoyage);
       const identifiant = voyage && texte(voyage, F.voyageId);
-      if (identifiant) {
-        previsions.set(identifiant, lirePrevisions(miseAJour, reference));
-      }
+      const lues = lirePrevisions(miseAJour, reference);
+      if (identifiant) previsions.set(identifiant, lues);
+
+      const cle = cleDuDescripteur(voyage, reference);
+      if (cle && lues.length) previsionsParVoyage.set(cle, lues);
+      noterAnnulation(annulations, voyage, reference, null);
     }
 
     const alerte = sousMessage(entite, F.entiteAlerte);
-    if (alerte) alertes.push(lireAlerte(alerte));
+    if (alerte) alertes.push(lireAlerte(alerte, reference));
   });
 
-  return { horodatage, vehicules, previsions, alertes };
+  return { horodatage, vehicules, previsions, previsionsParVoyage, alertes,
+           annulations };
+}
+
+/** Cle « ligne|direction|depart » d'un TripDescriptor, ou null. */
+function cleDuDescripteur(voyage, reference) {
+  if (!voyage) return null;
+  const identifiant = texte(voyage, F.voyageId);
+  const fiche = identifiant ? reference.voyages[identifiant] : undefined;
+  const route = reference.routes[texte(voyage, F.voyageRoute)
+    || (fiche && fiche.route)];
+  const depart = texte(voyage, F.voyageDepart);
+  if (!route || !route.famille || !fiche || !fiche.direction || !depart) {
+    return null;
+  }
+  return cleDeVoyage(route.famille, fiche.direction, depart.slice(0, 5));
+}
+
+/**
+ * Retient les voyages que la STC declare supprimes.
+ *
+ * La cle reprend les seules donnees communes au flux et a l'horaire publie :
+ * ligne, direction et heure de depart. Annoncer un autobus qui ne viendra pas
+ * est la pire chose que puisse faire un afficheur d'horaires.
+ */
+function noterAnnulation(annulations, voyage, reference, dejaLu) {
+  if (!voyage) return;
+  if (!VOYAGES_SUPPRIMES.has(entier(voyage, F.voyageRelation))) return;
+
+  const identifiant = texte(voyage, F.voyageId);
+  const fiche = identifiant ? reference.voyages[identifiant] : undefined;
+  const route = reference.routes[texte(voyage, F.voyageRoute)
+    || (fiche && fiche.route)];
+  const depart = texte(voyage, F.voyageDepart);
+  const ligne = dejaLu ? dejaLu.ligne : (route ? route.famille : null);
+  const direction = dejaLu ? dejaLu.direction : (fiche ? fiche.direction : null);
+  if (!ligne || !direction || !depart) return;
+
+  annulations.set(cleDeVoyage(ligne, direction, depart.slice(0, 5)), {
+    voyageId: identifiant,
+    ligne,
+    direction,
+    depart: depart.slice(0, 5),
+  });
+}
+
+export function cleDeVoyage(ligne, direction, depart) {
+  return `${ligne}|${direction}|${depart}`;
+}
+
+/** Ce voyage de l'horaire publie est-il annule aujourd'hui ? */
+export function voyageAnnule(etat, voyage) {
+  if (!etat || !etat.annulations || !etat.annulations.size) return false;
+  return etat.annulations.has(
+    cleDeVoyage(voyage.ligne, voyage.direction, voyage.depart.heure));
 }
 
 function lireVehicule(entite, vehicule, reference) {
@@ -166,16 +246,54 @@ function lirePrevisions(miseAJour, reference) {
         ? reference.arrets[arretId].nom : null,
       heure: evenement ? entier(evenement, F.evenementHeure) : undefined,
       retard: evenement ? entierSigne(evenement, F.evenementRetard) : undefined,
+      saute: entier(maj, F.arretRelation) === ARRET_SAUTE,
     };
-  }).filter((prevision) => prevision.heure !== undefined);
+  }).filter((prevision) => prevision.heure !== undefined || prevision.saute);
 }
 
-function lireAlerte(alerte) {
+function lireAlerte(alerte, reference) {
   return {
     cause: entier(alerte, F.alerteCause),
     titre: enTexteSimple(traduire(sousMessage(alerte, F.alerteTitre))),
     texte: enTexteSimple(traduire(sousMessage(alerte, F.alerteTexte))),
+    portee: lirePortee(alerte, reference),
   };
+}
+
+/**
+ * Ce que l'avis concerne.
+ *
+ * La STC n'y met aujourd'hui que son identifiant d'agence : tous ses avis
+ * visent donc le reseau entier. Le champ est neanmoins lu, pour qu'un avis
+ * un jour rattache a une ligne s'affiche au bon endroit plutot que partout.
+ */
+function lirePortee(alerte, reference) {
+  const lignes = new Set();
+  const arrets = new Set();
+  let reseau = false;
+
+  const cibles = sousMessages(alerte, F.alerteCibles);
+  if (!cibles.length) reseau = true;
+
+  cibles.forEach((cible) => {
+    const route = reference.routes[texte(cible, F.cibleRoute)];
+    const arretId = texte(cible, F.cibleArret);
+    if (route && route.famille) lignes.add(route.famille);
+    if (arretId && reference.arrets[arretId]) {
+      arrets.add(reference.arrets[arretId].nom);
+    }
+    // Une cible qui ne nomme que l'agence porte sur tout le reseau.
+    if (!route && !arretId && !sousMessage(cible, F.cibleVoyage)) reseau = true;
+  });
+
+  return { reseau: reseau || (!lignes.size && !arrets.size),
+           lignes: [...lignes], arrets: [...arrets] };
+}
+
+/** L'avis concerne-t-il cette ligne ? Un avis reseau concerne tout le monde. */
+export function alerteConcerne(alerte, ligne) {
+  if (!alerte.portee || alerte.portee.reseau) return true;
+  return alerte.portee.lignes.includes(ligne);
 }
 
 /**
@@ -231,7 +349,33 @@ export function vehiculeDuVoyage(etat, voyage) {
 /** Heure de passage prevue d'un vehicule a un arret nomme, en secondes epoch. */
 export function previsionA(etat, vehicule, nomArret) {
   if (!etat || !vehicule || !vehicule.voyageId) return null;
-  const previsions = etat.previsions.get(vehicule.voyageId);
+  return chercherPrevision(etat.previsions.get(vehicule.voyageId), nomArret);
+}
+
+/**
+ * Previsions d'un voyage de l'horaire publie, qu'un vehicule ait ete
+ * positionne ou non. Un flux qui ne publierait que des mises a jour resterait
+ * ainsi exploitable.
+ */
+export function previsionsDuVoyage(etat, voyage) {
+  if (!etat) return null;
+  const parVoyage = etat.previsionsParVoyage;
+  if (parVoyage) {
+    const trouvees = parVoyage.get(
+      cleDeVoyage(voyage.ligne, voyage.direction, voyage.depart.heure));
+    if (trouvees) return trouvees;
+  }
+  const vehicule = vehiculeDuVoyage(etat, voyage);
+  return vehicule && vehicule.voyageId
+    ? etat.previsions.get(vehicule.voyageId) || null : null;
+}
+
+/** Prevision d'un voyage a un arret nomme. */
+export function previsionDuVoyageA(etat, voyage, nomArret) {
+  return chercherPrevision(previsionsDuVoyage(etat, voyage), nomArret);
+}
+
+function chercherPrevision(previsions, nomArret) {
   if (!previsions) return null;
   return previsions.find((prevision) => prevision.arret
     && memeArret(prevision.arret, nomArret)) || null;

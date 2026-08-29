@@ -10,7 +10,8 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-  chargerTempsReel, enTexteSimple, memeArret, previsionA, vehiculeDuVoyage,
+  alerteConcerne, chargerTempsReel, enTexteSimple, memeArret, previsionA,
+  previsionDuVoyageA, previsionsDuVoyage, vehiculeDuVoyage, voyageAnnule,
 } from '../assets/js/tempsreel.js';
 import { instantDepuisEpoch } from '../assets/js/calendrier.js';
 
@@ -63,12 +64,14 @@ describe('chargement du flux', () => {
       const previsions = etat.previsions.get(vehicule.voyageId);
       if (!previsions) continue;
       assert.ok(previsions.length > 0);
+      // Une prévision porte une heure, ou déclare l'arrêt sauté.
       for (const prevision of previsions) {
-        assert.ok(prevision.heure > 1_700_000_000);
+        assert.ok(prevision.heure > 1_700_000_000 || prevision.saute === true);
       }
       // Les prévisions se suivent dans le temps.
-      for (let i = 1; i < previsions.length; i += 1) {
-        assert.ok(previsions[i].heure >= previsions[i - 1].heure);
+      const heures = previsions.filter((p) => p.heure !== undefined);
+      for (let i = 1; i < heures.length; i += 1) {
+        assert.ok(heures[i].heure >= heures[i - 1].heure);
       }
     }
   });
@@ -183,5 +186,106 @@ describe('mise en texte simple des avis', () => {
   it('laisse passer les valeurs vides', () => {
     assert.equal(enTexteSimple(null), null);
     assert.equal(enTexteSimple(''), '');
+  });
+});
+
+describe('mises à jour sans position de véhicule', () => {
+  const voyage = {
+    ligne: 'express', direction: 'sorel', depart: { heure: '23:40' },
+  };
+
+  /** Flux ne portant que des prévisions, sans aucune position GPS. */
+  const etatSansVehicule = {
+    horodatage: 0,
+    vehicules: [],
+    previsions: new Map(),
+    previsionsParVoyage: new Map([['express|sorel|23:40', [
+      { arret: 'Terminus des Promenades - STC', heure: 1_800_000_000 },
+    ]]]),
+    alertes: [],
+    annulations: new Map(),
+  };
+
+  it('retrouve les prévisions par ligne, direction et départ', () => {
+    const previsions = previsionsDuVoyage(etatSansVehicule, voyage);
+    assert.ok(previsions, 'les prévisions devraient être retrouvées');
+    assert.equal(previsions.length, 1);
+  });
+
+  it('retrouve la prévision d’un arrêt nommé', () => {
+    const prevision = previsionDuVoyageA(etatSansVehicule, voyage,
+      'Terminus des Promenades - STC');
+    assert.equal(prevision.heure, 1_800_000_000);
+  });
+
+  it('ne trouve rien pour un voyage absent du flux', () => {
+    assert.equal(previsionsDuVoyage(etatSansVehicule,
+      { ...voyage, depart: { heure: '05:30' } }), null);
+  });
+
+  it('retombe sur l’index par véhicule si le nouvel index manque', () => {
+    const ancien = {
+      vehicules: [{ voyageId: 'v1', ligne: 'express', direction: 'sorel',
+                    depart: '23:40' }],
+      previsions: new Map([['v1', [
+        { arret: 'Terminus des Promenades - STC', heure: 1_800_000_042 },
+      ]]]),
+      annulations: new Map(),
+    };
+    assert.equal(previsionDuVoyageA(ancien, voyage,
+      'Terminus des Promenades - STC').heure, 1_800_000_042);
+  });
+});
+
+describe('voyages déclarés supprimés', () => {
+  const annulations = new Map([['ligne10|cegep|08:20', {}]]);
+
+  it('reconnaît un voyage annulé', () => {
+    assert.equal(voyageAnnule({ annulations },
+      { ligne: 'ligne10', direction: 'cegep', depart: { heure: '08:20' } }), true);
+  });
+
+  it('ne confond pas un autre départ de la même direction', () => {
+    assert.equal(voyageAnnule({ annulations },
+      { ligne: 'ligne10', direction: 'cegep', depart: { heure: '08:25' } }), false);
+  });
+
+  it('ne confond pas l’autre direction', () => {
+    assert.equal(voyageAnnule({ annulations },
+      { ligne: 'ligne10', direction: 'terminus', depart: { heure: '08:20' } }), false);
+  });
+
+  it('ne voit aucune annulation sans flux', () => {
+    const voyage = { ligne: 'ligne10', direction: 'cegep', depart: { heure: '08:20' } };
+    assert.equal(voyageAnnule(null, voyage), false);
+    assert.equal(voyageAnnule({ annulations: new Map() }, voyage), false);
+  });
+});
+
+describe('portée des avis', () => {
+  const reseau = { portee: { reseau: true, lignes: [], arrets: [] } };
+  const cible = { portee: { reseau: false, lignes: ['ligne10'], arrets: [] } };
+
+  it('un avis réseau concerne toutes les lignes', () => {
+    assert.equal(alerteConcerne(reseau, 'ligne10'), true);
+    assert.equal(alerteConcerne(reseau, 'express'), true);
+  });
+
+  it('un avis ciblé ne concerne que sa ligne', () => {
+    assert.equal(alerteConcerne(cible, 'ligne10'), true);
+    assert.equal(alerteConcerne(cible, 'express'), false);
+  });
+
+  it('un avis sans portée connue est traité comme un avis réseau', () => {
+    assert.equal(alerteConcerne({}, 'express'), true);
+  });
+
+  it('les avis réels de la STC ne visent aucune ligne en particulier', async () => {
+    // Constat du 29 août 2026 : informed_entity ne porte que l'agence.
+    const etat = await avecFlux(fluxValide, () => chargerTempsReel(reference));
+    for (const alerte of etat.alertes) {
+      assert.equal(alerte.portee.reseau, true);
+      assert.deepEqual(alerte.portee.lignes, []);
+    }
   });
 });

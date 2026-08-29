@@ -787,3 +787,22 @@ a { color: var(--marque); }
   text-underline-offset: 2px;
   cursor: pointer;
 }
+
+.retour__heure--annule { text-decoration: line-through; opacity: .7; }
+
+.retour__risque {
+  margin: 0;
+  padding: .5rem .65rem;
+  border-radius: 3px;
+  background: var(--alerte-clair);
+  color: var(--alerte);
+  font-size: .82rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.retour__risque strong { display: block; }
+
+.passage--annule .passage__heure { text-decoration: line-through; opacity: .7; }
+.passage--annule { opacity: .72; }
+
+.avis > summary .pastille { flex: none; }

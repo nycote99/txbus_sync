@@ -30,16 +30,33 @@ depuis le navigateur. L’application y lit la position GPS des véhicules, les
 heures de passage réellement prévues à chaque arrêt — d’où l’écart affiché avec
 la fiche horaire — et les avis de service.
 
+Elle y lit aussi les **courses supprimées** : un express annulé s’affiche
+barré, et ne compte plus comme correspondance. Annoncer un autobus qui ne
+viendra pas est la pire chose que puisse faire un afficheur d’horaires.
+
 Quand le flux ne répond pas — hors ligne, panne, ou consultation d’une autre
 journée — l’application retombe sur une position estimée à partir de l’horaire
 publié, et le dit : la pastille passe de « en direct » à « estimé selon
 l’horaire ».
+
+Deux précisions tirées du flux réel. Les avis de la STC ne portent aujourd’hui
+qu’un identifiant d’agence dans `informed_entity` : ils concernent tous le
+réseau entier, et l’étiquette le dit plutôt que de laisser croire à un tri. Le
+champ est néanmoins lu, pour qu’un avis un jour rattaché à une ligne s’affiche
+au bon endroit. Et les prévisions sont indexées par ligne, direction et heure
+de départ autant que par véhicule : un flux qui publierait des mises à jour
+sans position GPS resterait exploitable.
 
 **Mon retour.** L’écran bâti autour du déplacement qui expose le mieux le
 problème : rentrer en express, puis prendre un taxibus. On choisit d’où l’on
 part, où l’on descend, vers quelle zone on poursuit et quel jour ; l’écran rend
 chaque express de la journée avec le taxibus qui le prolonge, le temps
 d’attente, et un verdict qui dit *quand* réserver.
+
+Le temps réel s’y greffe : quand le retard dépasse le jeu de la
+correspondance, l’écran annonce que le taxibus visé **n’est plus rattrapable**
+et donne le suivant. Le jeu est l’attente moins le battement de descente —
+six minutes d’attente n’en laissent qu’une d’utilisable.
 
 Ce verdict est la raison d’être de l’écran. Un mardi ordinaire, sur les
 34 retours depuis Longueuil, **27 exigent de réserver avant même de descendre

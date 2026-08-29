@@ -46,6 +46,7 @@ function alertesDuReseau(tempsReel) {
     return h('details.bandeau.bandeau--alerte.avis',
       h('summary',
         h('strong', titre),
+        etiquettePortee(alerte),
         h('span.avis__accroche', accroche)),
       h('p.avis__texte', texte));
   });
@@ -66,6 +67,22 @@ function bandeauDuJour(donnees, profil, jourDeService) {
     h('div',
       h('strong', `${dateLongue(jourDeService)} · ${service}`),
       h('span', profil.ferie ? `${profil.ferie.nom} — ${details}` : details)));
+}
+
+/**
+ * Ce que l'avis touche. La STC ne rattache aujourd'hui ses avis a aucune ligne
+ * en particulier : ils portent tous sur l'ensemble du reseau, et l'etiquette
+ * le dit plutot que de laisser croire a un tri.
+ */
+function etiquettePortee(alerte) {
+  const portee = alerte.portee;
+  if (!portee || portee.reseau) {
+    return h('span.pastille.pastille--neutre', 'tout le réseau');
+  }
+  const noms = portee.lignes.map((ligne) => LIGNES[ligne]
+    ? LIGNES[ligne].nom : ligne);
+  return h('span.pastille.pastille--alerte',
+    noms.concat(portee.arrets).join(', '));
 }
 
 /**

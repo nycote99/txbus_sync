@@ -140,6 +140,7 @@ const LIBELLES = {
   apres_arrivee: 'Réservable après la descente',
   ferme: 'Réservation fermée',
   aucun: 'Aucun taxibus',
+  annule: 'Course annulée',
 };
 
 const COULEURS = {
@@ -148,31 +149,43 @@ const COULEURS = {
   apres_arrivee: 'ok',
   ferme: 'neutre',
   aucun: 'neutre',
+  annule: 'arret',
 };
 
 function ligneRetour(retour, donnees, estAujourdHui) {
-  const { depart, departReel, arriveeReelle, taxibus, verdict } = retour;
+  const { departReel, arriveeReelle, taxibus, verdict, annule } = retour;
   const code = verdict.code;
-  const clos = code === 'ferme' || code === 'aucun';
+  const clos = code === 'ferme' || code === 'aucun' || annule;
 
   return h(`div.retour${clos ? '.retour--clos' : ''}`,
     h('div.retour__trajet',
-      h('span.retour__heure', departReel.heure),
+      h(`span.retour__heure${annule ? '.retour__heure--annule' : ''}`,
+        departReel.heure),
       h('span.retour__fleche', '→'),
-      h('span.retour__heure', arriveeReelle.heure),
+      h(`span.retour__heure${annule ? '.retour__heure--annule' : ''}`,
+        arriveeReelle.heure),
       pastilleLigne('express', retour.voyage.circuit),
-      arriveeReelle.direct
-        ? h('span.pastille.pastille--ok', 'en direct') : null),
+      annule ? h('span.pastille.pastille--arret', 'Annulé') : null,
+      !annule && arriveeReelle.direct
+        ? mentionEcartArrivee(arriveeReelle) : null),
 
-    taxibus
-      ? h('p.retour__suite',
-          h('strong', `Taxibus ${taxibus.heure}`),
-          ` · ${delai(retour.attente)} d’attente · `,
-          h(`span.pastille.pastille--${COULEURS[code]}`, LIBELLES[code]))
-      : h('p.retour__suite', h('span.pastille.pastille--neutre',
-          LIBELLES[code])),
+    annule
+      ? h('p.retour__suite', h('span.pastille.pastille--arret', LIBELLES.annule))
+      : taxibus
+        ? h('p.retour__suite',
+            h('strong', `Taxibus ${taxibus.heure}`),
+            ` · ${delai(retour.attente)} d’attente · `,
+            h(`span.pastille.pastille--${COULEURS[code]}`, LIBELLES[code]))
+        : h('p.retour__suite', h('span.pastille.pastille--neutre',
+            LIBELLES[code])),
 
-    taxibus ? h('p.retour__limite', consigne(retour, estAujourdHui)) : null,
+    annule
+      ? h('p.retour__limite', 'La STC déclare cette course supprimée : '
+        + 'ne comptez pas dessus pour votre correspondance.')
+      : alerteCorrespondance(retour),
+
+    !annule && taxibus
+      ? h('p.retour__limite', consigne(retour, estAujourdHui)) : null,
 
     !clos && taxibus
       ? h('div.retour__actions',
@@ -181,6 +194,36 @@ function ligneRetour(retour, donnees, estAujourdHui) {
             href: donnees.liens.reservation, target: '_blank', rel: 'noopener',
           }, 'Réserver'))
       : null);
+}
+
+/** L'écart entre l'heure prévue en direct et la fiche horaire. */
+function mentionEcartArrivee(arriveeReelle) {
+  if (Math.abs(arriveeReelle.ecart) < 2) {
+    return h('span.pastille.pastille--ok', 'à l’heure');
+  }
+  const signe = arriveeReelle.ecart > 0 ? '+' : '−';
+  return h(`span.pastille.pastille--${arriveeReelle.ecart > 0 ? 'alerte' : 'neutre'}`,
+    `${signe}${Math.abs(arriveeReelle.ecart)} min`);
+}
+
+/**
+ * Ce que le temps réel change à la correspondance : soit elle est perdue et
+ * il faut viser le départ suivant, soit elle tient de si peu qu'il vaut mieux
+ * le savoir avant de compter dessus.
+ */
+function alerteCorrespondance(retour) {
+  if (retour.correspondancePerdue) {
+    return h('p.retour__risque',
+      h('strong', `Correspondance perdue : le taxibus de `
+        + `${retour.taxibusPrevu.heure} n’est plus rattrapable.`),
+      ` Le retour se reporte sur celui de ${retour.taxibus.heure}.`);
+  }
+  if (retour.margeServree && retour.taxibus) {
+    return h('p.retour__risque',
+      `Correspondance serrée : ${delai(retour.jeu)} de jeu seulement `
+      + 'une fois la descente faite. Un retard la ferait manquer.');
+  }
+  return null;
 }
 
 /**

@@ -7,7 +7,9 @@ import {
   decalerDate, enHeure, enMinutes, instant, instantDeDepart,
   instantDepuisEpoch, profilDuJour,
 } from './calendrier.js';
-import { previsionA, vehiculeDuVoyage } from './tempsreel.js';
+import {
+  previsionDuVoyageA, vehiculeDuVoyage, voyageAnnule,
+} from './tempsreel.js';
 
 export const LIGNES = {
   ligne10: {
@@ -132,8 +134,8 @@ export function prochainsPassages(donnees, options) {
  */
 export function passageReel(etat, voyage, passage) {
   const vehicule = vehiculeDuVoyage(etat, voyage);
-  const prevision = vehicule ? previsionA(etat, vehicule, passage.arret) : null;
-  if (!prevision) {
+  const prevision = previsionDuVoyageA(etat, voyage, passage.arret);
+  if (!prevision || prevision.heure === undefined) {
     return { instant: passage.instant, heure: passage.heure, direct: false,
              vehicule };
   }
@@ -221,6 +223,7 @@ export function vehiculesEnCirculation(donnees, jourDeService, instantCourant,
   }
 
   return tous
+    .filter((voyage) => !voyageAnnule(etatTempsReel, voyage))
     .map((voyage) => ({ voyage, position: position(voyage, instantCourant) }))
     .filter(({ position: p }) => p.etat === 'en_route' || p.etat === 'a_l_arret')
     .sort((a, b) => a.voyage.depart.instant - b.voyage.depart.instant);
@@ -347,6 +350,14 @@ export function departsTaxibus(donnees, options) {
  * donc un verdict qui dit *quand* reserver, pas seulement si c'est encore
  * possible.
  */
+/**
+ * Jeu reel d'une correspondance, en minutes : l'attente annoncee moins le
+ * battement qu'on se donne pour descendre et rejoindre l'arret. Une attente de
+ * six minutes avec cinq minutes de battement ne laisse qu'une minute de jeu —
+ * n'importe quel retard la fait disparaitre.
+ */
+export const JEU_SERRE = 5;
+
 export function retoursAvecTaxibus(donnees, options) {
   const {
     ligne = 'express', direction = 'sorel', embarquement, descente,
@@ -367,15 +378,24 @@ export function retoursAvecTaxibus(donnees, options) {
 
     const departReel = passageReel(tempsReel, voyage, depart);
     const arriveeReelle = passageReel(tempsReel, voyage, arrivee);
+    const annule = voyageAnnule(tempsReel, voyage);
 
-    const taxibus = zone ? departsTaxibus(donnees, {
+    const chercher = (depuis) => (zone ? departsTaxibus(donnees, {
       origine: zone,
       destination: zoneDestination,
       maintenant: instantCourant,
-      depuis: arriveeReelle.instant + correspondance,
+      depuis: depuis + correspondance,
       jourDeService,
       limite: 1,
-    })[0] || null : null;
+    })[0] || null : null);
+
+    // Le taxibus que l'horaire promettait, et celui qu'on attrapera vraiment.
+    const taxibusPrevu = chercher(arrivee.instant);
+    const taxibus = arriveeReelle.direct
+      && arriveeReelle.instant !== arrivee.instant
+      ? chercher(arriveeReelle.instant) : taxibusPrevu;
+
+    const marge = taxibus ? taxibus.instantDepart - arriveeReelle.instant : null;
 
     resultat.push({
       voyage,
@@ -383,11 +403,21 @@ export function retoursAvecTaxibus(donnees, options) {
       arrivee,
       departReel,
       arriveeReelle,
+      annule,
       zone: zone || null,
       zoneDestination,
       taxibus,
-      attente: taxibus ? taxibus.instantDepart - arriveeReelle.instant : null,
-      verdict: verdictDeReservation(taxibus, departReel, arriveeReelle),
+      taxibusPrevu,
+      attente: marge,
+      marge,
+      // Le retard a fait glisser la correspondance sur un départ ultérieur.
+      correspondancePerdue: Boolean(taxibus && taxibusPrevu
+        && taxibus.instantDepart !== taxibusPrevu.instantDepart),
+      jeu: marge === null ? null : marge - correspondance,
+      // Jeu si court qu'un retard ordinaire ferait perdre le taxibus.
+      margeServree: marge !== null && marge - correspondance <= JEU_SERRE,
+      verdict: annule ? { code: 'annule' }
+        : verdictDeReservation(taxibus, departReel, arriveeReelle),
     });
     if (resultat.length >= limite) break;
   }
