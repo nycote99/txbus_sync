@@ -104,6 +104,7 @@ tests/                      tests unitaires (node --test, sans dépendance)
 tools/verifier_donnees.py   contrôles de cohérence des horaires
 tools/verifier_gtfs.py      contrôles sur la table de référence
 tools/verifier_service_worker.py  contrôle de la coquille hors ligne
+tools/veiller_sources.py    veille hebdomadaire sur les horaires publiés
 ```
 
 Aucune dépendance, aucune étape de compilation : les fichiers publiés sont les
@@ -116,7 +117,7 @@ n'a que quatre types.
 
 | Source | Contenu | Rafraîchissement |
 |---|---|---|
-| Fiches PDF de la STC | horaires ligne 10, express, taxibus par zone | à la main, ~2 fois l'an |
+| Fiches PDF de la STC | horaires ligne 10, express, taxibus par zone | à la main, ~2 fois l'an, sur alerte de la veille |
 | GTFS statique Zenbus | noms des lignes, parcours complet des arrêts, directions | à la main, avec les PDF |
 | GTFS-RT Zenbus | positions GPS, heures prévues, avis de service | toutes les 30 s dans le navigateur |
 
@@ -227,6 +228,25 @@ circuit à l'autre — il vaut 0 pour Longueuil sur les 750 et 752, mais 0 pour
 Sorel-Tracy sur les 751 et 753. Seule la destination affichée est fiable, et
 c'est elle que `parse_gtfs.py` utilise.
 
+### Savoir que les horaires ont changé
+
+Les données sont figées au moment de l'extraction, et rien n'avertit quand la
+STC publie une nouvelle fiche : l'application continuerait à servir des heures
+périmées, avec assurance — heures limites de réservation comprises.
+
+Surveiller les adresses connues ne verrait rien venir : le nom du fichier porte
+sa date, `20260817_Horaire_ligne10_VF.pdf`, et l'ancienne adresse reste servie
+telle quelle. `veiller_sources.py` relit donc les trois pages horaires du site
+et regarde quels PDF elles pointent *aujourd'hui*. Il signale trois choses :
+
+- une page pointe une fiche que l'application ne connaît pas ;
+- un PDF connu a changé de contenu sans changer d'adresse ;
+- le GTFS de Zenbus a été republié (`feed_version`).
+
+`.github/workflows/veille.yml` l'exécute chaque lundi matin — le jour où les
+changements d'horaire de la STC prennent effet — et ouvre une issue au premier
+écart, en la mettant à jour plutôt qu'en accumulant une issue par semaine.
+
 ## Vérifications
 
 `.github/workflows/verifier.yml` exécute les deux contrôles sur chaque *pull
@@ -238,6 +258,10 @@ python3 tools/verifier_donnees.py         # cohérence des horaires extraits
 python3 tools/verifier_gtfs.py            # cohérence de la table de référence
 python3 tools/verifier_service_worker.py  # complétude de la coquille hors ligne
 ```
+
+`tools/veiller_sources.py` n'y figure pas : il interroge le site de la STC et
+n'a donc rien à faire dans un contrôle de *pull request*, qui doit rester
+déterministe. Il tourne à part, sur son propre calendrier.
 
 Les tests couvrent ce que l'usager ne peut pas vérifier lui-même : le calcul
 des jours fériés, la journée de service qui bascule à 3 h du matin, et surtout

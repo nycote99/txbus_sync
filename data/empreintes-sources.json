@@ -1,0 +1,29 @@
+{
+ "empreintes": {
+  "express": "0dbac1d1dbd2062d3ee00916afea91f349a62cbf60e9324a8e84c9804361afee",
+  "ligne10": "17f72be8e9a618beb4d80b869385f39b7dfd0287da890d8528a30ba04d6c41b8",
+  "taxibus-zone-1": "242e77c33cb49dcd8f672836fd4175a5a96799510fe3c14bc63e73b6e01b7772",
+  "taxibus-zone-2": "0f37146a2a9df2fa8e71e36e198183478476acba07c635d402d98bdd43a6b7e3",
+  "taxibus-zone-3": "7d041f181c9f7af3335872632a7689273e59591944dbf729a314fd36474e80db",
+  "taxibus-zone-4": "352eb8be6c2890b8651e2191d94ac0374db2a26d36fcc5b3f7038efbdf76aff6"
+ },
+ "gtfs": {
+  "feed_end_date": "20261231",
+  "feed_start_date": "20260129",
+  "feed_version": "1769619951920"
+ },
+ "pages": {
+  "express": [
+   "https://stcpierredesaurel.ca/wp-content/uploads/2026/08/20260817_Horaire_express_VF.pdf"
+  ],
+  "ligne10": [
+   "https://stcpierredesaurel.ca/wp-content/uploads/2026/08/20260817_Horaire_ligne10_VF.pdf"
+  ],
+  "taxibus": [
+   "https://stcpierredesaurel.ca/wp-content/uploads/2026/07/Taxibus-Zone-3.pdf",
+   "https://stcpierredesaurel.ca/wp-content/uploads/2026/07/Taxibus-zone-1.pdf",
+   "https://stcpierredesaurel.ca/wp-content/uploads/2026/07/Taxibus-zone-2.pdf",
+   "https://stcpierredesaurel.ca/wp-content/uploads/2026/07/Taxibus-zone-4.pdf"
+  ]
+ }
+}
