@@ -92,6 +92,7 @@ assets/js/calendrier.js     jours de service, jours fériés, heures du terminus
 assets/js/reseau.js         requêtes d'horaire, heures limites, position
 assets/js/protobuf.js       lecteur minimal du format de fil protobuf
 assets/js/tempsreel.js      flux GTFS-RT : positions, prévisions, avis
+assets/js/proximite.js      arrêts les plus proches d'une position
 assets/js/rappel.js         fichier calendrier de rappel d'une heure limite
 assets/js/vues/             une vue par onglet
 data/horaires.json          horaires extraits des PDF officiels
@@ -143,6 +144,20 @@ l'heure publiée, et une post-condition refuse de construire les données si une
 heure publiée s'en trouvait modifiée. Les colonnes qu'aucun voyage GTFS
 n'explique — les trois départs express revus depuis janvier — gardent leurs
 seuls points de passage publiés.
+
+**Arrêts près de moi.** Quarante-trois arrêts dans une liste déroulante ne
+disent pas lequel est au coin de la rue ; la position du navigateur, elle, le
+dit. Elle ne quitte jamais l'appareil : les coordonnées des arrêts sont
+embarquées et le calcul se fait dans la page. Un refus de géolocalisation
+s'affiche en une phrase et laisse la liste faire son travail.
+
+Deux arrêts à moins de soixante mètres sont fondus en une seule proposition :
+les deux trottoirs d'un carrefour portent souvent deux noms — « Du Roi /
+Charlotte » d'un côté, « Charlotte / Du Roi » de l'autre — et proposer les deux
+n'aide personne à choisir. Le seuil vient d'une mesure : sur ce réseau, les
+paires face-à-face vont de 2 à 54 m, et le premier arrêt réellement distinct est
+à 78 m. C'est le nom du plus proche qui s'affiche, celui qu'on lit sur le
+poteau ; l'autre reste en infobulle.
 
 Chaque arrêt de grille porte désormais son identifiant GTFS. C'est lui qui
 apparie un passage à sa prévision temps réel : les deux sens de la ligne 10

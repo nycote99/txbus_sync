@@ -368,6 +368,52 @@ a { color: var(--marque); }
   color: #fff;
 }
 .bouton--pleine { width: 100%; }
+.bouton--discret {
+  align-self: flex-start;
+  min-height: 2.4rem;
+  padding: .4rem .8rem;
+  font-size: .82rem;
+  font-weight: 500;
+}
+.bouton[disabled] { opacity: .55; cursor: default; }
+
+/* --- Arrêts près de moi -------------------------------------------------- */
+
+.proximite:empty { display: none; }
+.puces { display: flex; flex-wrap: wrap; gap: .4rem; }
+.puce {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .4rem;
+  min-height: 2.4rem;
+  /* minmax(0) plus haut ne suffit pas ici : c'est le nom qui doit céder. */
+  max-width: 100%;
+  padding: .35rem .7rem;
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--encre);
+  font: inherit;
+  font-size: .82rem;
+  text-align: left;
+  cursor: pointer;
+}
+.puce[aria-pressed="true"] {
+  border-color: var(--marque);
+  background: var(--marque-clair);
+  color: var(--marque);
+  font-weight: 600;
+}
+.puce__mesure {
+  color: var(--encre-douce);
+  font-family: var(--chiffres);
+  font-variant-numeric: tabular-nums;
+  font-size: .76rem;
+  white-space: nowrap;
+}
+.puce[aria-pressed="true"] .puce__mesure { color: inherit; }
+
+.note--alerte { color: var(--alerte); }
 
 .vide {
   padding: 1.5rem 1rem;

@@ -9,6 +9,7 @@ import {
   LIGNES, arretsDeLigne, grille, prochainsPassages, voyages,
 } from '../reseau.js';
 import { preferences, definir } from '../preferences.js';
+import { arretsProches, distanceLisible, localiser } from '../proximite.js';
 import {
   carte, elementPassage, messageVide, parcoursDuVoyage, pastilleLigne,
   resumePosition,
@@ -55,6 +56,7 @@ export function vueAutobus(contexte) {
           definir({ arretFavori: valeur });
           rafraichir({ arret: valeur });
         }),
+      blocProximite(contexte, ligne, arret),
       h('p.note', `${LIGNES[ligne].sousTitre} · horaire en vigueur depuis le `
         + `${donnees.version_horaire}.`))),
 
@@ -78,6 +80,74 @@ export function vueAutobus(contexte) {
 
     carteHoraire(donnees, ligne, direction, jourDeService, profil,
       maintenantInstant, arret, rafraichir));
+}
+
+/**
+ * « Près de moi » : raccourci vers l'arret le plus proche.
+ *
+ * Quarante-trois arrets dans une liste deroulante ne disent pas lequel est au
+ * coin de la rue. La position du navigateur, elle, le dit — et elle ne quitte
+ * jamais l'appareil : le calcul se fait ici, sur les coordonnees embarquees.
+ *
+ * Le bouton n'est propose que si la table GTFS est chargee : c'est elle qui
+ * porte les coordonnees. Sans elle, la liste deroulante suffit.
+ */
+function blocProximite(contexte, ligne, arret) {
+  const { donnees, reference, etatVue, rafraichir } = contexte;
+  if (!reference || !reference.arrets) return null;
+
+  const etat = etatVue.proximite;
+  const chercher = () => {
+    rafraichir({ proximite: { enCours: true } });
+    localiser().then((resultat) => {
+      if (resultat.erreur) {
+        rafraichir({ proximite: { erreur: resultat.erreur } });
+        return;
+      }
+      rafraichir({ proximite: {
+        precision: resultat.position.precision,
+        arrets: arretsProches(donnees, reference, resultat.position,
+          { ligne, limite: 3 }),
+      } });
+    });
+  };
+
+  return h('div.pile.pile--serre',
+    h('button.bouton.bouton--discret', {
+      type: 'button',
+      disabled: Boolean(etat && etat.enCours),
+      onclick: chercher,
+    }, etat && etat.enCours ? 'Localisation…' : 'Arrêts près de moi'),
+    h('div.proximite', { role: 'status', 'aria-live': 'polite' },
+      resultatProximite(etat, arret, contexte)));
+}
+
+function resultatProximite(etat, arret, contexte) {
+  if (!etat || etat.enCours) return null;
+  if (etat.erreur) return h('p.note.note--alerte', etat.erreur);
+  if (!etat.arrets || !etat.arrets.length) {
+    return h('p.note', 'Aucun arrêt de cette ligne à proximité.');
+  }
+  return [
+    h('div.puces', etat.arrets.map((proche) => h('button.puce', {
+      type: 'button',
+      'aria-pressed': String(proche.nom === arret),
+      // Le trottoir d'en face porte parfois un autre nom — « Du Roi /
+      // Charlotte » d'un côté, « Charlotte / Du Roi » de l'autre. On garde le
+      // plus proche, sans escamoter le second.
+      title: proche.autresNoms && proche.autresNoms.length
+        ? `Aussi nommé ${proche.autresNoms.join(', ')} dans l’autre sens`
+        : null,
+      onclick: () => {
+        definir({ arretFavori: proche.nom });
+        contexte.rafraichir({ arret: proche.nom, voyage: null });
+      },
+    }, proche.nom, h('span.puce__mesure', distanceLisible(proche.distance))))),
+    etat.precision > 200
+      ? h('p.note', `Position approximative à ${distanceLisible(etat.precision)} `
+        + 'près : vérifiez le nom avant de vous fier à l’ordre.')
+      : null,
+  ];
 }
 
 function trouverVoyage(donnees, ligne, direction, jourDeService, profil, colonne) {

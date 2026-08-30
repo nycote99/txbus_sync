@@ -6,7 +6,7 @@
  * depuis le cache, puis rafraichies en arriere-plan.
  */
 
-const VERSION = 'sorel-transit-v2';
+const VERSION = 'sorel-transit-v3';
 const COQUILLE = [
   './',
   'index.html',
@@ -18,6 +18,7 @@ const COQUILLE = [
   'assets/js/calendrier.js',
   'assets/js/reseau.js',
   'assets/js/preferences.js',
+  'assets/js/proximite.js',
   'assets/js/rappel.js',
   'assets/js/protobuf.js',
   'assets/js/tempsreel.js',
