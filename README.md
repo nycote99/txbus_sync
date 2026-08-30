@@ -228,6 +228,17 @@ circuit à l'autre — il vaut 0 pour Longueuil sur les 750 et 752, mais 0 pour
 Sorel-Tracy sur les 751 et 753. Seule la destination affichée est fiable, et
 c'est elle que `parse_gtfs.py` utilise.
 
+### Une nouvelle version s'annonce, elle ne s'impose pas
+
+Le service worker n'appelait plus `skipWaiting()` en silence : une version qui
+s'installe pendant qu'on lit un horaire remplacerait sous les yeux de l'usager
+des heures qu'il est peut-être en train de noter. La nouvelle version attend
+donc, un bandeau flottant l'annonce, et c'est l'usager qui choisit le moment.
+« Plus tard » referme le bandeau sans rien activer ; la visite suivante le
+propose de nouveau. « Actualiser » active la version en attente, purge l'ancien
+cache et recharge la page une seule fois — un verrou empêche deux onglets
+ouverts de se relancer l'un l'autre sans fin.
+
 ### Savoir que les horaires ont changé
 
 Les données sont figées au moment de l'extraction, et rien n'avertit quand la

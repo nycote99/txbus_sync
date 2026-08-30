@@ -683,6 +683,30 @@ a { color: var(--marque); }
 .bandeau > div { min-width: 0; display: grid; gap: .2rem; }
 .bandeau strong { display: block; }
 
+/* Le bandeau de nouvelle version flotte au-dessus de la barre de navigation,
+   sans pousser le contenu : on peut finir de lire avant de décider. */
+.bandeau--flottant {
+  position: fixed;
+  left: max(.75rem, env(safe-area-inset-left));
+  right: max(.75rem, env(safe-area-inset-right));
+  bottom: calc(var(--nav) + .75rem);
+  z-index: 20;
+  max-width: 34rem;
+  margin-inline: auto;
+  align-items: center;
+  box-shadow: 0 8px 28px rgb(0 0 0 / .22);
+  background: var(--surface);
+  border: 1px solid var(--marque);
+  color: var(--encre);
+}
+.bandeau--flottant .bandeau__actions {
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+  margin-left: auto;
+}
+.bandeau--flottant .bouton { min-height: 2.4rem; padding: .4rem .85rem; }
+
 .pied {
   padding: 1.25rem 0 0;
   font-size: .76rem;
@@ -698,6 +722,12 @@ a { color: var(--marque); }
 }
 
 @media (min-width: 64rem) {
+  /* La navigation passe en colonne de gauche : le bandeau n'a plus de barre à
+     éviter en bas, mais il ne doit pas déborder sur la colonne. */
+  .bandeau--flottant {
+    left: calc(15rem + .75rem);
+    bottom: .75rem;
+  }
   .appli {
     grid-template-columns: 15rem minmax(0, 1fr);
     grid-template-rows: auto 1fr;

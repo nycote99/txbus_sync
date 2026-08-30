@@ -34,10 +34,16 @@ const COQUILLE = [
   'data/reseau-gtfs.json',
 ];
 
+// On ne prend pas la main tout seul. Une version qui s'installe pendant qu'on
+// consulte un horaire remplacerait sous les yeux de l'usager des heures qu'il
+// est peut-etre en train de noter. La nouvelle version attend donc, la page
+// l'annonce, et c'est l'usager qui decide du moment.
 self.addEventListener('install', (evenement) => {
-  evenement.waitUntil(caches.open(VERSION)
-    .then((cache) => cache.addAll(COQUILLE))
-    .then(() => self.skipWaiting()));
+  evenement.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(COQUILLE)));
+});
+
+self.addEventListener('message', (evenement) => {
+  if (evenement.data && evenement.data.type === 'ACTIVER') self.skipWaiting();
 });
 
 self.addEventListener('activate', (evenement) => {

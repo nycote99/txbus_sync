@@ -250,9 +250,61 @@ function appliquerTheme(theme) {
 function enregistrerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
-  navigator.serviceWorker.register('service-worker.js').catch(() => {
+
+  // Une seule recharge, meme si l'evenement se repete : sans ce garde-fou,
+  // deux onglets ouverts peuvent se relancer l'un l'autre sans fin.
+  let recharge = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (recharge) return;
+    recharge = true;
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.register('service-worker.js').then((inscription) => {
+    if (inscription.waiting && navigator.serviceWorker.controller) {
+      annoncerVersion(inscription.waiting);
+    }
+    inscription.addEventListener('updatefound', () => {
+      const arrivant = inscription.installing;
+      if (!arrivant) return;
+      arrivant.addEventListener('statechange', () => {
+        // `controller` distingue la mise a jour de la toute premiere
+        // installation, qui n'a rien a annoncer.
+        if (arrivant.state === 'installed' && navigator.serviceWorker.controller) {
+          annoncerVersion(arrivant);
+        }
+      });
+    });
+  }).catch(() => {
     /* le hors-ligne est un bonus : son echec ne doit pas gener l'application */
   });
+}
+
+/**
+ * Bandeau de nouvelle version.
+ *
+ * L'application se recharge en une fraction de seconde, mais pas n'importe
+ * quand : on peut etre en train de lire l'heure limite d'une reservation. Le
+ * bandeau attend donc un geste, et se referme si on prefere finir d'abord.
+ */
+function annoncerVersion(travailleur) {
+  if (document.getElementById('bandeau-version')) return;
+  const bandeau = h('div.bandeau.bandeau--info.bandeau--flottant',
+    { id: 'bandeau-version', role: 'status', 'aria-live': 'polite' },
+    h('div',
+      h('strong', 'Nouvelle version disponible'),
+      h('span', 'Les horaires embarqués ont peut-être changé.')),
+    h('div.bandeau__actions',
+      h('button.bouton.bouton--principal', {
+        type: 'button',
+        onclick: () => travailleur.postMessage({ type: 'ACTIVER' }),
+      }, 'Actualiser'),
+      h('button.bouton-icone', {
+        type: 'button',
+        'aria-label': 'Plus tard',
+        onclick: () => bandeau.remove(),
+      }, '✕')));
+  document.body.append(bandeau);
 }
 
 demarrer();
