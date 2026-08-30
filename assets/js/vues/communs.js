@@ -91,9 +91,10 @@ export function parcoursDuVoyage(voyage, instantCourant, etatTempsReel) {
     reel: passageReel(etatTempsReel, voyage, passage),
   }));
 
-  // Le GTFS compte bien plus d'arrets que la fiche horaire : le vehicule est
-  // souvent a un arret intermediaire absent de ce parcours. On le situe donc
-  // par les heures prevues, entre le dernier point passe et le suivant.
+  // Depuis la greffe du parcours GTFS, la grille connait tous les arrets ; il
+  // reste les trois departs express qu'aucun voyage GTFS n'explique, ou le
+  // vehicule peut etre a un arret absent du parcours. On le situe donc par les
+  // heures prevues, entre le dernier point passe et le suivant.
   const rangDuVehicule = vehicule
     ? etapes.findIndex(({ reel }) => reel.instant > instantCourant) - 1
     : -1;

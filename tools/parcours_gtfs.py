@@ -22,6 +22,7 @@ GTFS sur l'heure publiee.
 import collections
 import csv
 import io
+import math
 import re
 import unicodedata
 import zipfile
@@ -328,3 +329,92 @@ def _cout(heures, connus, voyage):
         return float("inf")
     ecart = abs(next(iter(decalages)))
     return ecart if ecart <= ECART_MAX else float("inf")
+
+
+# --- Traces des parcours -----------------------------------------------------
+#
+# Le GTFS decrit chaque parcours par sa polyligne : 5654 points au total, 354 ko
+# bruts. On n'embarque pas cela pour dessiner une carte de la taille d'un
+# telephone.
+#
+# Deux reductions, toutes deux mesurees plutot que devinees :
+#   1. un seul trace par direction, celui que suivent le plus de voyages. La
+#      ligne 10 n'en a de toute facon qu'un par sens (ses 63 voyages le
+#      partagent) ; les express en ont quatre variantes qui ne different que par
+#      l'arret desservi a Varennes, et le representatif en couvre 42 sur 49.
+#      Le detour de Saint-Roch n'est donc pas dessine — les vehicules, eux, sont
+#      places a leur position GPS reelle et non projetes sur le trace.
+#   2. une simplification de Douglas-Peucker a dix metres. A 390 px de large, la
+#      boucle urbaine fait quinze metres par pixel : l'ecart reste sous le
+#      pixel. Il reste 398 points et 8 ko.
+TOLERANCE_METRES = 10
+
+# Metres par degre a 46° N. La longitude est comprimee par le cosinus de la
+# latitude ; l'ignorer etirerait le reseau d'un tiers en largeur.
+METRES_PAR_DEGRE_LAT = 111132.0
+METRES_PAR_DEGRE_LON = 111320.0 * math.cos(math.radians(46.03))
+
+
+def _distance_au_segment(point, debut, fin):
+    """Distance en metres d'un point au segment [debut, fin]."""
+    ax = (debut[1] - point[1]) * METRES_PAR_DEGRE_LON
+    ay = (debut[0] - point[0]) * METRES_PAR_DEGRE_LAT
+    bx = (fin[1] - point[1]) * METRES_PAR_DEGRE_LON
+    by = (fin[0] - point[0]) * METRES_PAR_DEGRE_LAT
+    dx, dy = bx - ax, by - ay
+    if dx == 0 and dy == 0:
+        return math.hypot(ax, ay)
+    part = max(0.0, min(1.0, -(ax * dx + ay * dy) / (dx * dx + dy * dy)))
+    return math.hypot(ax + part * dx, ay + part * dy)
+
+
+def simplifier(points, tolerance=TOLERANCE_METRES):
+    """Douglas-Peucker : retire les points qui ne changent pas le trace."""
+    if len(points) < 3:
+        return list(points)
+    pire, rang = 0.0, 0
+    for i in range(1, len(points) - 1):
+        ecart = _distance_au_segment(points[i], points[0], points[-1])
+        if ecart > pire:
+            pire, rang = ecart, i
+    if pire <= tolerance:
+        return [points[0], points[-1]]
+    return (simplifier(points[:rang + 1], tolerance)[:-1]
+            + simplifier(points[rang:], tolerance))
+
+
+def traces(chemin_archive, tolerance=TOLERANCE_METRES):
+    """Trace representatif de chaque (famille, direction), simplifie."""
+    with zipfile.ZipFile(chemin_archive) as archive:
+        routes = {r["route_id"]: r["route_short_name"]
+                  for r in _lire(archive, "routes.txt")}
+        voyages = _lire(archive, "trips.txt")
+        polylignes = collections.defaultdict(list)
+        for point in _lire(archive, "shapes.txt"):
+            polylignes[point["shape_id"]].append((
+                int(point["shape_pt_sequence"]),
+                float(point["shape_pt_lat"]),
+                float(point["shape_pt_lon"])))
+
+    for liste in polylignes.values():
+        liste.sort()
+
+    frequences = collections.Counter()
+    for voyage in voyages:
+        famille = FAMILLES.get(routes.get(voyage["route_id"]))
+        direction = DIRECTIONS.get((voyage.get("trip_headsign") or "").strip())
+        if famille and direction and voyage.get("shape_id"):
+            frequences[(famille, direction, voyage["shape_id"])] += 1
+
+    retenus = {}
+    for (famille, direction, forme), nombre in frequences.items():
+        cle = "%s|%s" % (famille, direction)
+        if cle not in retenus or nombre > retenus[cle][1]:
+            retenus[cle] = (forme, nombre)
+
+    resultat = {}
+    for cle, (forme, _) in sorted(retenus.items()):
+        points = [(lat, lon) for _, lat, lon in polylignes[forme]]
+        resultat[cle] = [[round(lat, 5), round(lon, 5)]
+                         for lat, lon in simplifier(points, tolerance)]
+    return resultat

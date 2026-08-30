@@ -105,6 +105,9 @@ def construire():
         "routes": table_routes,
         "arrets": table_arrets,
         "voyages": table_voyages,
+        # Polylignes des parcours, pour dessiner la carte sans tuiles externes.
+        # Voir tools/parcours_gtfs.py pour ce qui est simplifié, et pourquoi.
+        "traces": parcours_gtfs.traces(ARCHIVE),
     }
 
 
@@ -124,9 +127,10 @@ def main():
     with open(options.sortie, "w", encoding="utf-8") as fichier:
         json.dump(donnees, fichier, ensure_ascii=False, separators=(",", ":"))
         fichier.write("\n")
-    print("écrit : %s (%d lignes, %d arrêts, %d voyages)"
+    points = sum(len(t) for t in donnees["traces"].values())
+    print("écrit : %s (%d lignes, %d arrêts, %d voyages, %d tracés / %d points)"
           % (options.sortie, len(donnees["routes"]), len(donnees["arrets"]),
-             len(donnees["voyages"])))
+             len(donnees["voyages"]), len(donnees["traces"]), points))
 
 
 if __name__ == "__main__":

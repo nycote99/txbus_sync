@@ -15,6 +15,7 @@ import {
   resumePosition,
 } from './communs.js';
 import { carteCorrespondances } from './correspondances.js';
+import { planDuVoyage } from './plan.js';
 
 export function vueAutobus(contexte) {
   const { donnees, horloge, jourDeService, profil, etatVue, rafraichir } = contexte;
@@ -73,7 +74,8 @@ export function vueAutobus(contexte) {
       { plat: passages.length > 0 }),
 
     voyageChoisi
-      ? carteSuivi(voyageChoisi, maintenantInstant, donnees, tempsReel) : null,
+      ? carteSuivi(voyageChoisi, maintenantInstant, donnees, tempsReel,
+                   contexte.reference, arret) : null,
 
     voyageChoisi
       ? carteCorrespondances(contexte, voyageChoisi, maintenantInstant) : null,
@@ -156,11 +158,13 @@ function trouverVoyage(donnees, ligne, direction, jourDeService, profil, colonne
     .find((v) => v.colonne === colonne) || null;
 }
 
-function carteSuivi(voyage, maintenantInstant, donnees, tempsReel) {
+function carteSuivi(voyage, maintenantInstant, donnees, tempsReel, reference,
+                    arretChoisi) {
   const resume = resumePosition(voyage, maintenantInstant, tempsReel);
   return carte('Suivi du véhicule',
     h('div.pile.pile--serre',
       h('p.note', h('strong', resume.titre), ' — ', resume.detail),
+      planDuVoyage(voyage, maintenantInstant, reference, tempsReel, arretChoisi),
       parcoursDuVoyage(voyage, maintenantInstant, tempsReel),
       h('a.bouton.bouton--pleine', {
         href: donnees.liens.suivi, target: '_blank', rel: 'noopener',

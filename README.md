@@ -92,6 +92,7 @@ assets/js/calendrier.js     jours de service, jours fériés, heures du terminus
 assets/js/reseau.js         requêtes d'horaire, heures limites, position
 assets/js/protobuf.js       lecteur minimal du format de fil protobuf
 assets/js/tempsreel.js      flux GTFS-RT : positions, prévisions, avis
+assets/js/plan.js           projection et géométrie du plan du réseau
 assets/js/proximite.js      arrêts les plus proches d'une position
 assets/js/rappel.js         fichier calendrier de rappel d'une heure limite
 assets/js/vues/             une vue par onglet
@@ -227,6 +228,36 @@ Un piège à connaître dans le GTFS : `direction_id` n'est pas cohérent d'un
 circuit à l'autre — il vaut 0 pour Longueuil sur les 750 et 752, mais 0 pour
 Sorel-Tracy sur les 751 et 753. Seule la destination affichée est fiable, et
 c'est elle que `parse_gtfs.py` utilise.
+
+### Où est l'autobus, sur le vrai parcours
+
+La liste des passages dit quel arrêt vient ensuite. Elle ne dit pas *où* on en
+est — quarante-trois arrêts défilent sans qu'on sache si l'autobus a passé la
+rivière. Le suivi d'un voyage porte donc un plan : le parcours réel, les arrêts,
+la portion déjà faite en couleur, et le véhicule dessus.
+
+Aucune tuile, aucune bibliothèque, aucune requête à un tiers — le plan est aussi
+disponible hors ligne que le reste, et ne signale à personne quel arrêt on
+regarde. Le GTFS décrit les parcours par 5654 points, 354 ko bruts ; deux
+réductions mesurées ramènent cela à **8 ko** :
+
+- **un tracé par direction**, celui que suivent le plus de voyages. La ligne 10
+  n'en a qu'un par sens de toute façon — ses 63 voyages le partagent. Les
+  express ont quatre variantes qui ne diffèrent que par l'arrêt desservi à
+  Varennes, et le représentatif en couvre 42 sur 49 : le détour de Saint-Roch
+  n'est donc pas dessiné. Les véhicules, eux, sont placés à leur position GPS
+  réelle, jamais projetés de force sur le tracé.
+- **Douglas-Peucker à dix mètres.** À 390 px de large, la boucle urbaine fait
+  quinze mètres par pixel : l'écart reste sous le pixel. Il reste 398 points.
+
+La projection est équirectangulaire, calée sur le centre du dessin ; à l'échelle
+du territoire elle est exacte à mieux que le pixel, là où Mercator ne servirait
+qu'à compliquer. Le cadre garde les proportions du terrain : le corridor
+Longueuil–Sorel-Tracy se voit comme un trait en diagonale, ce qu'il est.
+
+L'avancement est mesuré **en distance**, pas en nombre d'arrêts franchis. Les
+deux diffèrent franchement sur l'express : un véhicule qui vient d'atteindre le
+stationnement incitatif a fait 76 % des arrêts mais 93 % du chemin.
 
 ### Une nouvelle version s'annonce, elle ne s'impose pas
 

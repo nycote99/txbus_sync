@@ -665,6 +665,54 @@ a { color: var(--marque); }
 }
 .horaire tbody tr[data-choisi="oui"] th[scope="row"] { font-weight: 700; }
 
+/* --- Plan du parcours ---------------------------------------------------- */
+
+.plan { margin: 0; display: grid; gap: .45rem; }
+.plan__dessin {
+  width: 100%;
+  height: auto;
+  /* Le dessin est carré ; sans cette borne il mange l'écran en hauteur sur
+     mobile, où la largeur disponible est la contrainte. */
+  max-height: 46vh;
+  background: var(--surface-2);
+  border: 1px solid var(--bordure);
+  border-radius: var(--r-m);
+  overflow: visible;
+}
+.plan__reste, .plan__fait {
+  fill: none;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Assez présent pour qu'on suive le parcours à venir, assez discret pour que
+   la portion déjà faite reste la première chose qu'on voie. */
+.plan__reste { stroke: var(--encre-douce); opacity: .38; }
+.plan__fait--ligne10 { stroke: var(--ligne10); }
+.plan__fait--express { stroke: var(--express); }
+.plan__arret { fill: var(--encre-douce); opacity: .55; }
+.plan__arret--choisi { fill: var(--marque); opacity: 1; }
+.plan__vehicule--ligne10 { fill: var(--ligne10); }
+.plan__vehicule--express { fill: var(--express); }
+.plan__vehicule {
+  stroke: var(--surface);
+  stroke-width: .8;
+  paint-order: stroke;
+}
+/* La position estimée se distingue de la position observée : creuse plutôt
+   que pleine, comme la pastille « estimé » qui l'accompagne. */
+.plan__vehicule--estime { fill: var(--surface-2); stroke-width: 1.1; }
+.plan__vehicule--estime.plan__vehicule--ligne10 { stroke: var(--ligne10); }
+.plan__vehicule--estime.plan__vehicule--express { stroke: var(--express); }
+.plan__halo { fill: var(--marque); opacity: .18; }
+@media (prefers-reduced-motion: no-preference) {
+  .plan__halo { animation: battement 2.4s ease-in-out infinite; }
+}
+@keyframes battement {
+  0%, 100% { opacity: .1; }
+  50% { opacity: .28; }
+}
+
 /* --- Divers -------------------------------------------------------------- */
 
 .liste-definitions { display: grid; gap: .55rem; margin: 0; }
