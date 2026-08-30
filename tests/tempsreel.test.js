@@ -218,6 +218,37 @@ describe('mises à jour sans position de véhicule', () => {
     assert.equal(prevision.heure, 1_800_000_000);
   });
 
+  it('distingue par identifiant deux arrêts qui portent le même nom', () => {
+    // Les deux sens de la ligne 10 desservent « Marie-Victorin / Rivard » de
+    // part et d'autre de la rue, à vingt minutes d'écart. Le nom seul les
+    // confond ; l'identifiant GTFS les sépare.
+    const etat = {
+      previsionsParVoyage: new Map([['ligne10|cegep|09:45', [
+        { arretId: 'SP:aller', arret: 'Marie-Victorin / Rivard',
+          heure: 1_800_000_100 },
+        { arretId: 'SP:retour', arret: 'Marie-Victorin / Rivard',
+          heure: 1_800_001_300 },
+      ]]]),
+      previsions: new Map(),
+      vehicules: [],
+      annulations: new Map(),
+    };
+    const voyageLigne10 = { ligne: 'ligne10', direction: 'cegep',
+                            depart: { heure: '09:45' } };
+    assert.equal(previsionDuVoyageA(etat, voyageLigne10,
+      { id: 'SP:retour', arret: 'Marie-Victorin / Rivard' }).heure,
+    1_800_001_300);
+    // Sans identifiant, on retombe sur le nom : la première prévision gagne.
+    assert.equal(previsionDuVoyageA(etat, voyageLigne10,
+      { id: null, arret: 'Marie-Victorin / Rivard' }).heure, 1_800_000_100);
+  });
+
+  it('retombe sur le nom quand l’identifiant est inconnu du flux', () => {
+    const prevision = previsionDuVoyageA(etatSansVehicule, voyage,
+      { id: 'SP:jamais-vu', arret: 'Terminus des Promenades - STC' });
+    assert.equal(prevision.heure, 1_800_000_000);
+  });
+
   it('ne trouve rien pour un voyage absent du flux', () => {
     assert.equal(previsionsDuVoyage(etatSansVehicule,
       { ...voyage, depart: { heure: '05:30' } }), null);

@@ -229,8 +229,10 @@ describe('grilles horaires', () => {
   it('construit des voyages dont les passages progressent dans le temps', () => {
     for (const voyage of voyages(donnees, 'ligne10', 'cegep', MARDI, profilMardi)) {
       for (let i = 1; i < voyage.passages.length; i += 1) {
-        assert.ok(voyage.passages[i].instant > voyage.passages[i - 1].instant,
-          `voyage de ${voyage.depart.heure} : passage ${i} n’avance pas`);
+        // Croissance large, et non stricte : deux arrêts distants de deux
+        // cents mètres tombent dans la même minute d’horaire.
+        assert.ok(voyage.passages[i].instant >= voyage.passages[i - 1].instant,
+          `voyage de ${voyage.depart.heure} : passage ${i} recule`);
       }
     }
   });
@@ -286,7 +288,7 @@ describe('prochains passages', () => {
   it('ne rend que des passages à venir, ordonnés', () => {
     const moment = instant(MARDI, enMinutes('09:00'));
     const passages = prochainsPassages(donnees, {
-      ligne: 'ligne10', arret: 'Hôtel-Dieu (hôpital)',
+      ligne: 'ligne10', arret: 'Hôtel-Dieu (Hôpital)',
       maintenant: moment, jourDeService: MARDI, limite: 6,
     });
     assert.equal(passages.length, 6);
@@ -425,7 +427,7 @@ describe('retours prolongés par un taxibus', () => {
   it('sait aussi partir de Saint-Roch, en zone 2-A', () => {
     const retours = retoursAvecTaxibus(donnees, {
       ...options,
-      descente: 'Mairie - Saint-Roch-de-Richelieu',
+      descente: 'Mairie St-Roch-de-Richelieu - 1111 rue du Parc',
       zoneDestination: null,
       limite: 5,
     });
@@ -578,5 +580,71 @@ describe('correspondance mise à l’épreuve du temps réel', () => {
       assert.equal(retour.annule, false);
       assert.notEqual(retour.verdict.code, 'annule');
     }
+  });
+});
+
+/**
+ * Les fiches horaires ne publient qu'une dizaine de points de passage. Le
+ * parcours complet vient du GTFS, greffé sur elles à la construction des
+ * données (tools/parcours_gtfs.py). Ces tests vérifient le résultat de la
+ * greffe, puisque c'est lui que l'application sert.
+ */
+describe('parcours complet des lignes', () => {
+  it('expose les quarante-trois arrêts de la ligne 10', () => {
+    assert.equal(
+      arretsDeDirection(donnees, 'ligne10', 'cegep', profilMardi).length, 43);
+    assert.equal(
+      arretsDeDirection(donnees, 'ligne10', 'terminus', profilMardi).length, 41);
+  });
+
+  it('conserve les heures publiées aux points de passage des fiches', () => {
+    // Trois repères relevés sur la fiche du 17 août 2026 : premier départ,
+    // départ de pointe, dernier départ de la journée.
+    const grilleCegep = grille(donnees, 'ligne10', 'cegep', profilMardi);
+    const terminus = grilleCegep.arrets
+      .find((arret) => arret.nom === 'Terminus des Promenades - STC');
+    assert.equal(terminus.heures[0], '04:45');
+    assert.equal(terminus.heures[terminus.heures.length - 1], '23:05');
+    const hopital = grilleCegep.arrets
+      .find((arret) => arret.nom === 'Hôtel-Dieu (Hôpital)');
+    assert.equal(hopital.heures[0], '04:58');
+  });
+
+  it('rattache chaque passage à son identifiant d’arrêt GTFS', () => {
+    for (const ligne of Object.keys(LIGNES)) {
+      for (const direction of Object.keys(LIGNES[ligne].directions)) {
+        for (const voyage of voyages(donnees, ligne, direction, MARDI,
+                                     profilMardi)) {
+          for (const passage of voyage.passages) {
+            assert.ok(passage.id, `passage sans identifiant : ${passage.arret}`);
+          }
+        }
+      }
+    }
+  });
+
+  it('donne le même nom aux deux côtés d’une intersection, mais pas le même '
+     + 'identifiant', () => {
+    const aller = grille(donnees, 'ligne10', 'cegep', profilMardi).arrets
+      .find((arret) => arret.nom === 'Marie-Victorin / Rivard');
+    const retour = grille(donnees, 'ligne10', 'terminus', profilMardi).arrets
+      .find((arret) => arret.nom === 'Marie-Victorin / Rivard');
+    assert.ok(aller && retour);
+    assert.notEqual(aller.id, retour.id);
+  });
+
+  it('mène du Terminus au Cégep sans reculer', () => {
+    const parcours = arretsDeDirection(donnees, 'ligne10', 'cegep', profilMardi);
+    assert.equal(parcours[0], 'Terminus des Promenades - STC');
+    assert.equal(parcours[parcours.length - 1], 'Cégep de Sorel-Tracy');
+  });
+
+  it('rattache à une zone de taxibus les arrêts nouvellement exposés', () => {
+    assert.equal(donnees.zones_des_arrets['Marie-Victorin / Rivard'], '1');
+    assert.equal(donnees.zones_des_arrets['Charlotte / Phipps'], '1');
+    assert.equal(
+      donnees.zones_des_arrets['Mairie St-Roch-de-Richelieu - 1111 rue du Parc'],
+      '2-A');
+    assert.equal(donnees.zones_des_arrets['Terminus Longueuil (porte A7)'], null);
   });
 });

@@ -21,11 +21,13 @@ import subprocess
 import sys
 import zipfile
 
+import parcours_gtfs
+
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(RACINE, "tools", ".pdf-cache")
 ARCHIVE = os.path.join(CACHE, "gtfs.zip")
 
-SOURCE = "https://zenbus.net/gtfs/static/download.zip?dataset=pierre-de-saurel"
+SOURCE = parcours_gtfs.SOURCE
 FLUX_TEMPS_REEL = "https://zenbus.net/gtfs/rt/poll.proto?dataset=pierre-de-saurel"
 
 # Rattache chaque ligne du GTFS a la famille utilisee dans l'application.

@@ -55,7 +55,8 @@ def verifier():
                     erreurs.append("%s/%s : direction %s absente"
                                    % (ligne, service, direction))
                     continue
-                erreurs.extend(verifier_grille(ligne, service, direction, bloc))
+                erreurs.extend(verifier_grille(ligne, service, direction, bloc,
+                                               donnees["zones_des_arrets"]))
 
     if len(donnees["taxibus"]) < 12:
         erreurs.append("taxibus : seulement %d groupes de departs"
@@ -104,7 +105,7 @@ def verifier():
     return erreurs
 
 
-def verifier_grille(ligne, service, direction, bloc):
+def verifier_grille(ligne, service, direction, bloc, zones_des_arrets):
     """Une grille valide est rectangulaire, chronologique et sans trou en tete."""
     erreurs = []
     etiquette = "%s/%s/%s" % (ligne, service, direction)
@@ -132,6 +133,35 @@ def verifier_grille(ligne, service, direction, bloc):
 
     if None in arrets[0]["heures"]:
         erreurs.append("%s : l'arret d'origine a des colonnes vides" % etiquette)
+
+    # Depuis la greffe du parcours GTFS, chaque arret porte son identifiant :
+    # c'est lui qui apparie le passage a la prevision temps reel, le nom ne
+    # distinguant pas les deux cotes d'une intersection.
+    identifiants, noms = set(), set()
+    for arret in arrets:
+        identifiant = arret.get("id")
+        if not identifiant:
+            erreurs.append("%s : l'arret %r n'a pas d'identifiant GTFS"
+                           % (etiquette, arret["nom"]))
+        elif identifiant in identifiants:
+            erreurs.append("%s : identifiant en double %r" % (etiquette,
+                                                              identifiant))
+        else:
+            identifiants.add(identifiant)
+        if arret["nom"] in noms:
+            erreurs.append("%s : deux arrets nommes %r dans le meme sens"
+                           % (etiquette, arret["nom"]))
+        noms.add(arret["nom"])
+        if arret["nom"] not in zones_des_arrets:
+            erreurs.append("%s : l'arret %r n'est rattache a aucune zone"
+                           % (etiquette, arret["nom"]))
+
+    voyages_gtfs = bloc.get("voyages_gtfs")
+    if voyages_gtfs is None:
+        erreurs.append("%s : appariement GTFS absent" % etiquette)
+    elif len(voyages_gtfs) != largeur:
+        erreurs.append("%s : %d voyages GTFS pour %d colonnes"
+                       % (etiquette, len(voyages_gtfs), largeur))
 
     # Chaque voyage doit progresser dans le temps d'un arret au suivant.
     # On borne la lecture : une grille deja signalee comme irreguliere ne doit

@@ -115,7 +115,9 @@ function carteHoraire(donnees, ligne, direction, jourDeService, profil,
     bloc.arrets[0].heures.map((_, colonne) => h('th', { scope: 'col' },
       bloc.circuits ? bloc.circuits[colonne] : colonne + 1)));
 
-  const corps = bloc.arrets.map((ligneArret) => h('tr',
+  const corps = bloc.arrets.map((ligneArret) => h('tr', {
+    dataset: ligneArret.nom === arret ? { choisi: 'oui' } : {},
+  },
     h('th', { scope: 'row' }, ligneArret.nom),
     ligneArret.heures.map((heure, colonne) => h(heure ? 'td' : 'td.vide', {
       dataset: prochaineColonne && prochaineColonne.colonne === colonne
@@ -128,7 +130,7 @@ function carteHoraire(donnees, ligne, direction, jourDeService, profil,
         .map(([valeur, texte]) => ({ valeur, texte })),
         direction, (valeur) => rafraichir({ direction: valeur, voyage: null }),
         'Direction'),
-      h('div.defilant',
+      h('div.defilant.defilant--grille',
         h('table.horaire',
           h('caption.note', `${dateLongue(jourDeService)} — `
             + (profil.service === 'semaine' ? 'lundi au vendredi'

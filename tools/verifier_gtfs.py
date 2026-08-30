@@ -14,6 +14,7 @@ import sys
 
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FICHIER = os.path.join(RACINE, "data", "reseau-gtfs.json")
+HORAIRES = os.path.join(RACINE, "data", "horaires.json")
 
 FAMILLES = {"ligne10", "express"}
 DIRECTIONS = {"ligne10": {"cegep", "terminus"},
@@ -69,6 +70,21 @@ def verifier():
         for direction in directions:
             if (famille, direction) not in vues:
                 erreurs.append("aucun voyage pour %s/%s" % (famille, direction))
+
+    # Les grilles horaires designent leurs arrets par identifiant GTFS depuis la
+    # greffe du parcours. Un identifiant absent d'ici rendrait le passage
+    # inappariable au flux temps reel — et donc muet sur les retards.
+    with open(HORAIRES, encoding="utf-8") as fichier:
+        horaires = json.load(fichier)
+    for famille in ("ligne10", "express"):
+        for service, blocs in horaires[famille].items():
+            for direction, bloc in blocs.items():
+                for arret in bloc["arrets"]:
+                    if arret.get("id") and arret["id"] not in donnees["arrets"]:
+                        erreurs.append("%s/%s/%s : l'arrêt %r est inconnu de la "
+                                       "table GTFS"
+                                       % (famille, service, direction,
+                                          arret["nom"]))
 
     return erreurs
 

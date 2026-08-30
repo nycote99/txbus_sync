@@ -98,6 +98,7 @@ data/horaires.json          horaires extraits des PDF officiels
 data/reseau-gtfs.json       table qui nomme les identifiants du flux temps réel
 tools/parse_horaires.py     extraction PDF → JSON
 tools/parse_gtfs.py         extraction GTFS statique → table de référence
+tools/parcours_gtfs.py      parcours complet des lignes, greffé sur les fiches
 tests/                      tests unitaires (node --test, sans dépendance)
 tools/verifier_donnees.py   contrôles de cohérence des horaires
 tools/verifier_gtfs.py      contrôles sur la table de référence
@@ -115,11 +116,38 @@ n'a que quatre types.
 | Source | Contenu | Rafraîchissement |
 |---|---|---|
 | Fiches PDF de la STC | horaires ligne 10, express, taxibus par zone | à la main, ~2 fois l'an |
-| GTFS statique Zenbus | noms des lignes, arrêts et directions | à la main, avec les PDF |
+| GTFS statique Zenbus | noms des lignes, parcours complet des arrêts, directions | à la main, avec les PDF |
 | GTFS-RT Zenbus | positions GPS, heures prévues, avis de service | toutes les 30 s dans le navigateur |
 
 Le taxibus n'est pas dans le GTFS : il reste entièrement décrit par les fiches
 PDF, et ses heures limites de réservation sont calculées par l'application.
+
+### Ce que chaque source a le droit de dire
+
+Les fiches ne publient qu'une dizaine de points de passage par ligne — des
+repères, pas la liste des arrêts. Le GTFS, lui, connaît le parcours complet :
+quarante-trois arrêts pour la ligne 10 en direction du Cégep, quarante et un au
+retour.
+
+On ne peut pas pour autant lui substituer les fiches. Le GTFS publié par Zenbus
+porte `feed_version` du **28 janvier 2026**, alors que les fiches sont datées du
+**17 août** : trois voyages de la ligne 10 et deux express y ont changé d'heure,
+et deux express en ont disparu. Basculer les horaires sur le GTFS ferait
+régresser l'application de sept mois.
+
+D'où le partage : **les fiches donnent les heures, le GTFS donne la séquence des
+arrêts et les temps de parcours entre eux.** Les deux sources s'accordent
+exactement sur ces temps de parcours — vérifié sur les 126 voyages de la ligne
+10 — ce qui rend la greffe sûre : `parcours_gtfs.py` recale le parcours GTFS sur
+l'heure publiée, et une post-condition refuse de construire les données si une
+heure publiée s'en trouvait modifiée. Les colonnes qu'aucun voyage GTFS
+n'explique — les trois départs express revus depuis janvier — gardent leurs
+seuls points de passage publiés.
+
+Chaque arrêt de grille porte désormais son identifiant GTFS. C'est lui qui
+apparie un passage à sa prévision temps réel : les deux sens de la ligne 10
+desservent la même intersection de part et d'autre de la rue, sous le même nom,
+à des heures différentes — le nom seul les confondrait.
 
 ## Développement
 
@@ -157,10 +185,14 @@ un voyage qui recule dans le temps, une heure impossible ou une zone inconnue �
 autant de symptômes d’une mise en page qui aurait changé.
 
 Les données de référence qui ne figurent pas dans les grilles — zones, tarifs,
-règles, coordonnées, et la zone de taxibus de chaque arrêt d'autobus — sont
-tenues à la main en fin de `parse_horaires.py`. Un arrêt ajouté par la STC sans
-zone correspondante fait échouer `verifier_donnees.py`, ce qui évite qu'une
-correspondance disparaisse en silence.
+règles et coordonnées — sont tenues à la main en fin de `parse_horaires.py`.
+
+Les zones de taxibus des arrêts d'autobus suivent une règle plutôt qu'une
+liste : la ligne 10 est le circuit urbain, ses quarante-trois arrêts sont tous
+dans Sorel-Tracy, donc tous en zone 1. Seuls les arrêts express, qui sortent du
+territoire, sont nommés un à un. Un arrêt express ajouté par la STC sans zone
+correspondante fait échouer la construction, ce qui évite qu'une correspondance
+disparaisse en silence.
 
 Un piège à connaître dans le GTFS : `direction_id` n'est pas cohérent d'un
 circuit à l'autre — il vaut 0 pour Longueuil sur les 750 et 752, mais 0 pour

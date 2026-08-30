@@ -18,8 +18,11 @@ import re
 import subprocess
 import sys
 
+import parcours_gtfs
+
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(RACINE, "tools", ".pdf-cache")
+ARCHIVE_GTFS = os.path.join(CACHE, "gtfs.zip")
 
 SOURCES = {
     "ligne10": "https://stcpierredesaurel.ca/wp-content/uploads/2026/08/20260817_Horaire_ligne10_VF.pdf",
@@ -39,6 +42,10 @@ def telecharger():
         cible = os.path.join(CACHE, nom + ".pdf")
         subprocess.run(["curl", "-sSL", "-o", cible, url], check=True)
         print("telecharge:", nom)
+    # Le GTFS fournit le parcours complet des lignes d'autobus.
+    subprocess.run(["curl", "-sSL", "-o", ARCHIVE_GTFS, parcours_gtfs.SOURCE],
+                   check=True)
+    print("telecharge: gtfs.zip")
 
 
 def lignes_de_mots(page):
@@ -339,27 +346,51 @@ ZONES = [
 # enchainer un trajet en autobus avec un depart de taxibus : c'est la zone
 # d'arrivee qui determine les departs disponibles et leur heure limite.
 # `None` signale un arret hors du territoire desservi par le taxibus.
-ZONES_DES_ARRETS = {
+# --- Zones de taxibus des arrets d'autobus ---------------------------------
+#
+# La ligne 10 est le circuit urbain : ses quarante-trois arrets sont tous dans
+# Sorel-Tracy, donc tous en zone 1. L'enumerer arret par arret n'apprendrait
+# rien et se perimerait au premier arret ajoute ; on pose la regle.
+ZONE_LIGNE10 = "1"
+
+# Les express, eux, sortent du territoire. Chaque arret est donc nomme, et
+# `None` marque ceux qu'aucun taxibus ne dessert : le trajet s'y arrete.
+ZONES_DES_ARRETS_EXPRESS = {
     "Terminus des Promenades - STC": "1",
-    "Boulevard Poliquin (Thalassa)": "1",
-    "Fiset / Mgr Desranleau (Eggsquis)": "1",
-    "Fiset / Mgr Desranleau (station-service)": "1",
-    "Hôtel-Dieu (hôpital)": "1",
-    "Charlotte / Du Roi": "1",
-    "Du Roi / Charlotte": "1",
-    "Bourget (Location FGL)": "1",
-    "Marie-Victorin / Filiatrault": "1",
-    "Marie-Victorin / Garneau": "1",
-    "Marie-Victorin / St-Louis": "1",
-    "Stationnement incitatif Plaza Tracy": "1",
-    "CÉGEP de Sorel-Tracy": "1",
-    "CFP (Centre de formation professionnelle)": "1",
-    "Mairie - Saint-Roch-de-Richelieu": "2-A",
-    "Du Petit-Bois et de la Rivière - Varennes": None,
-    "Campus Cégep de Sorel-Tracy - Varennes": None,
-    "Armand-Frappier / de Murano - Sainte-Julie": None,
+    "Stationnement incitatif de la Plaza Tracy": "1",
+    "De la Plaza / De Tracy": "1",
+    "Autoroute 30 / De Tracy": "1",
+    "Mairie St-Roch-de-Richelieu - 1111 rue du Parc": "2-A",
+    "Du Petit-Bois et De la Rivière (embarquement)": None,
+    "Du Petit-Bois et De la Rivière (débarquement)": None,
+    "Campus Cégep Sorel-Tracy - 1555 Lionel-Boulet - Varennes (embarquement)": None,
+    "Campus Cégep Sorel-Tracy - 1555 Lionel-Boulet - Varennes (débarquement)": None,
+    "Armand-Frappier / de Murano": None,
     "Terminus Longueuil (porte A7)": None,
 }
+
+
+def zones_des_arrets(horaires):
+    """Zone de taxibus de chaque arret d'autobus, deduite des grilles greffees.
+
+    Un arret express absent de la table arrete la construction : mieux vaut
+    refuser de publier que de laisser croire qu'aucun taxibus ne le prolonge.
+    """
+    resultat = {}
+    for famille, services in (("ligne10", horaires["ligne10"]),
+                              ("express", horaires["express"])):
+        for blocs in services.values():
+            for bloc in blocs.values():
+                for arret in bloc["arrets"]:
+                    if famille == "ligne10":
+                        resultat.setdefault(arret["nom"], ZONE_LIGNE10)
+                    elif arret["nom"] in ZONES_DES_ARRETS_EXPRESS:
+                        resultat[arret["nom"]] = ZONES_DES_ARRETS_EXPRESS[arret["nom"]]
+                    else:
+                        raise ValueError("arrêt express sans zone : %s"
+                                         % arret["nom"])
+    return resultat
+
 
 FERIES = [
     {"cle": "jour_de_lan", "nom": "Jour de l’An", "terminus_ouvert": False},
@@ -445,6 +476,30 @@ REGLES = {
 }
 
 
+def greffer_parcours(donnees):
+    """Prolonge les grilles des fiches horaires aux arrets absents des fiches.
+
+    Les fiches ne publient qu'une dizaine de points de passage ; le GTFS connait
+    le parcours complet. Voir tools/parcours_gtfs.py pour le partage des roles
+    entre les deux sources — les heures viennent des fiches, la sequence des
+    arrets du GTFS.
+    """
+    parcours = parcours_gtfs.parcours(ARCHIVE_GTFS)
+    for famille in ("ligne10", "express"):
+        for service, blocs in donnees[famille].items():
+            for direction, bloc in blocs.items():
+                cle = (famille, direction, service)
+                if cle not in parcours:
+                    raise ValueError("parcours GTFS absent : %s" % (cle,))
+                blocs[direction], rapport = parcours_gtfs.greffer(
+                    bloc, parcours[cle])
+                print("greffé : %-8s %-14s %-10s %2d → %2d arrêts, "
+                      "%2d/%2d voyages appariés"
+                      % (famille, service, direction, rapport["arrets_fiche"],
+                         rapport["arrets_dense"], rapport["colonnes_appariees"],
+                         rapport["colonnes"]))
+
+
 def construire():
     import pdfplumber
     donnees = {
@@ -454,7 +509,6 @@ def construire():
         "liens": LIENS,
         "regles": REGLES,
         "zones": ZONES,
-        "zones_des_arrets": ZONES_DES_ARRETS,
         "tarifs": TARIFS,
         "feries": FERIES,
     }
@@ -462,6 +516,9 @@ def construire():
         donnees["ligne10"] = extraire_ligne10(pdf)
     with pdfplumber.open(os.path.join(CACHE, "express.pdf")) as pdf:
         donnees["express"] = extraire_express(pdf)
+
+    greffer_parcours(donnees)
+    donnees["zones_des_arrets"] = zones_des_arrets(donnees)
 
     taxibus = []
     for zone in (1, 2, 3, 4):

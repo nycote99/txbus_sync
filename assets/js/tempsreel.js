@@ -370,21 +370,34 @@ export function previsionsDuVoyage(etat, voyage) {
     ? etat.previsions.get(vehicule.voyageId) || null : null;
 }
 
-/** Prevision d'un voyage a un arret nomme. */
-export function previsionDuVoyageA(etat, voyage, nomArret) {
-  return chercherPrevision(previsionsDuVoyage(etat, voyage), nomArret);
+/**
+ * Prevision d'un voyage a un arret.
+ *
+ * `arret` est un passage de la grille — `{ id, arret }` — ou, a defaut, un nom.
+ * L'identifiant tranche ce que le nom ne peut pas trancher : les
+ * deux sens de la ligne 10 s'arretent de part et d'autre de la meme
+ * intersection, sous le meme nom, a des heures differentes.
+ */
+export function previsionDuVoyageA(etat, voyage, arret) {
+  return chercherPrevision(previsionsDuVoyage(etat, voyage), arret);
 }
 
-function chercherPrevision(previsions, nomArret) {
-  if (!previsions) return null;
-  return previsions.find((prevision) => prevision.arret
-    && memeArret(prevision.arret, nomArret)) || null;
+function chercherPrevision(previsions, arret) {
+  if (!previsions || !arret) return null;
+  const id = typeof arret === 'string' ? null : arret.id;
+  const nom = typeof arret === 'string' ? arret : arret.arret;
+  if (id) {
+    const parId = previsions.find((prevision) => prevision.arretId === id);
+    if (parId) return parId;
+  }
+  return previsions.find((prevision) => prevision.arret && nom
+    && memeArret(prevision.arret, nom)) || null;
 }
 
 /**
- * Les deux sources nomment les arrets un peu differemment : « Hôtel-Dieu
- * (Hôpital) » dans le GTFS, « Hôtel-Dieu (hôpital) » sur la fiche horaire.
- * On compare des formes reduites.
+ * Repli quand l'identifiant manque : les deux sources nomment les arrets un peu
+ * differemment — « Hôtel-Dieu (Hôpital) » dans le GTFS, « Hôtel-Dieu (hôpital) »
+ * sur la fiche horaire. On compare des formes reduites.
  */
 export function memeArret(a, b) {
   return reduire(a) === reduire(b);

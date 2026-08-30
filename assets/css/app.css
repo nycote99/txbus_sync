@@ -541,6 +541,9 @@ a { color: var(--marque); }
 /* --- Tableau d'horaire --------------------------------------------------- */
 
 .defilant { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* La ligne 10 compte quarante-trois arrêts : sans plafond, sa grille occupe
+   plusieurs écrans et enterre le reste de la page. */
+.defilant--grille { max-height: 60vh; overflow: auto; }
 .horaire {
   border-collapse: collapse;
   font-size: .8rem;
@@ -548,6 +551,13 @@ a { color: var(--marque); }
   font-family: var(--chiffres);
   min-width: 100%;
 }
+.horaire thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+}
+.horaire thead th:first-child { left: 0; z-index: 3; }
 .horaire th, .horaire td {
   padding: .35rem .5rem;
   text-align: center;
@@ -577,6 +587,13 @@ a { color: var(--marque); }
   border-radius: 4px;
 }
 .horaire td.vide { color: var(--encre-douce); opacity: .45; }
+/* Rangée de l'arrêt choisi plus haut : c'est celle qu'on est venu lire. */
+.horaire tbody tr[data-choisi="oui"] th[scope="row"],
+.horaire tbody tr[data-choisi="oui"] td {
+  background: var(--marque-clair);
+  color: var(--marque);
+}
+.horaire tbody tr[data-choisi="oui"] th[scope="row"] { font-weight: 700; }
 
 /* --- Divers -------------------------------------------------------------- */
 

@@ -58,6 +58,10 @@ export function voyages(donnees, ligne, direction, jourDeService, profil) {
       passages.push({
         rang,
         arret: arret.nom,
+        // Identifiant GTFS de l'arret : c'est lui qui apparie le passage a la
+        // prevision temps reel, le nom seul ne distinguant pas les deux cotes
+        // d'une intersection.
+        id: arret.id || null,
         heure,
         instant: instantDeDepart(jourDeService, heure),
       });
@@ -134,7 +138,7 @@ export function prochainsPassages(donnees, options) {
  */
 export function passageReel(etat, voyage, passage) {
   const vehicule = vehiculeDuVoyage(etat, voyage);
-  const prevision = previsionDuVoyageA(etat, voyage, passage.arret);
+  const prevision = previsionDuVoyageA(etat, voyage, passage);
   if (!prevision || prevision.heure === undefined) {
     return { instant: passage.instant, heure: passage.heure, direct: false,
              vehicule };
