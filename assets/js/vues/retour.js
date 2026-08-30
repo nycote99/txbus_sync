@@ -123,6 +123,9 @@ function resumeDuJour(retours, jourDeService, estAujourdHui) {
 
   const avantDepart = aReserverTot.filter(
     (r) => r.verdict.code === 'avant_embarquement').length;
+  // La ligne 10 change la portée de l'avertissement : ne pas avoir réservé
+  // n'est pas rester coincé, sauf pour les retours qu'elle ne couvre plus.
+  const sansAutobus = aReserverTot.filter((r) => !r.ligne10).length;
 
   return h('div.bandeau.bandeau--alerte',
     h('div',
@@ -131,7 +134,12 @@ function resumeDuJour(retours, jourDeService, estAujourdHui) {
       h('span', avantDepart
         ? `dont ${avantDepart} avant même de monter dans l’autobus, `
           + 'parce que le terminus aura fermé.'
-        : 'la réservation ferme pendant que vous êtes encore en route.')));
+        : 'la réservation ferme pendant que vous êtes encore en route.'),
+      h('span', sansAutobus
+        ? `Sur ces ${aReserverTot.length}, ${aReserverTot.length - sansAutobus} `
+          + `gardent une ligne 10 en repli ; ${sansAutobus} n’en ont aucune.`
+        : 'Tous gardent cependant une ligne 10 en repli, qui ne se réserve '
+          + 'pas.')));
 }
 
 const LIBELLES = {
@@ -184,6 +192,8 @@ function ligneRetour(retour, donnees, estAujourdHui) {
         + 'ne comptez pas dessus pour votre correspondance.')
       : alerteCorrespondance(retour),
 
+    annule ? null : suiteLigne10(retour),
+
     !annule && taxibus
       ? h('p.retour__limite', consigne(retour, estAujourdHui)) : null,
 
@@ -194,6 +204,34 @@ function ligneRetour(retour, donnees, estAujourdHui) {
             href: donnees.liens.reservation, target: '_blank', rel: 'noopener',
           }, 'Réserver'))
       : null);
+}
+
+/**
+ * L'autre façon de finir le trajet : la ligne 10, qui ne se réserve pas.
+ *
+ * Elle mérite d'être dite juste sous le verdict du taxibus, parce que c'est là
+ * qu'elle change quelque chose : quand la réservation est close depuis des
+ * heures, il reste souvent un autobus dans le quart d'heure.
+ */
+function suiteLigne10(retour) {
+  const { ligne10, verdict } = retour;
+  if (!ligne10) {
+    // L'absence explique le reste de la ligne : si l'heure limite du taxibus
+    // pèse si lourd sur ces retours-là, c'est qu'il n'y a rien d'autre.
+    return h('p.retour__limite',
+      verdict.code === 'ferme' || verdict.code === 'aucun'
+        ? 'Plus aucun autobus de la ligne 10 à cette heure, et plus de '
+          + 'taxibus : ce retour n’a pas de prolongement.'
+        : 'Plus aucun autobus de la ligne 10 à cette heure : le taxibus, '
+          + 'réservé à temps, est le seul prolongement.');
+  }
+  return h('p.retour__suite.retour__suite--secondaire',
+    pastilleLigne('ligne10'),
+    h('strong', ligne10.heure),
+    ` · ${delai(ligne10.attente)} d’attente · `,
+    h('span.pastille.pastille--ok', 'Sans réservation'),
+    ligne10.serree
+      ? h('span.pastille.pastille--alerte', 'correspondance serrée') : null);
 }
 
 /** L'écart entre l'heure prévue en direct et la fiche horaire. */

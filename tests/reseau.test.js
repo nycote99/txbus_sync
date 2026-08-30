@@ -12,9 +12,10 @@ import {
   dateDepuisNumero, enHeure, enMinutes, instant, profilDuJour, versEpoch,
 } from '../assets/js/calendrier.js';
 import {
-  LIGNES, arretsDeDirection, arretsDeLigne, delai, departsTaxibus,
-  destinationsDepuis, etatReservation, grille, limiteReservation, position,
-  prochainsPassages, retoursAvecTaxibus, vehiculesEnCirculation, voyages,
+  ATTENTE_MAX, LIGNES, arretsDeDirection, arretsDeLigne, correspondanceLigne10,
+  delai, departsTaxibus, destinationsDepuis, etatReservation, grille,
+  limiteReservation, passagesLigne10, position, prochainsPassages,
+  retoursAvecTaxibus, vehiculesEnCirculation, voyages,
 } from '../assets/js/reseau.js';
 
 import { MARDI, lireHoraires } from './aide.js';
@@ -646,5 +647,84 @@ describe('parcours complet des lignes', () => {
       donnees.zones_des_arrets['Mairie St-Roch-de-Richelieu - 1111 rue du Parc'],
       '2-A');
     assert.equal(donnees.zones_des_arrets['Terminus Longueuil (porte A7)'], null);
+  });
+});
+
+/**
+ * La ligne 10 est l'autre façon de finir un retour de Longueuil — et la seule
+ * qui ne se réserve pas. Ces tests figent où elle existe, et surtout où elle
+ * n'existe pas : c'est là que le taxibus réservé à temps devient obligatoire.
+ */
+describe('prolongement du retour par la ligne 10', () => {
+  const TERMINUS = 'Terminus des Promenades - STC';
+  const options = {
+    embarquement: 'Terminus Longueuil (porte A7)',
+    descente: TERMINUS,
+    jourDeService: MARDI,
+    maintenant: instant(MARDI, enMinutes('03:00')),
+    limite: 40,
+  };
+
+  it('trouve une ligne 10 pour la grande majorité des retours', () => {
+    const retours = retoursAvecTaxibus(donnees, options);
+    const avec = retours.filter((retour) => retour.ligne10);
+    assert.equal(retours.length, 34);
+    assert.equal(avec.length, 32);
+  });
+
+  it('n’en trouve aucune pour les deux arrivées de la nuit', () => {
+    const retours = retoursAvecTaxibus(donnees, options);
+    const sans = retours.filter((retour) => !retour.ligne10);
+    assert.deepEqual(sans.map((retour) => retour.arrivee.heure),
+      ['00:58', '01:48']);
+    // Ce sont précisément celles dont le taxibus devait être réservé avant la
+    // fermeture du terminus : aucune option de repli le soir même.
+    for (const retour of sans) {
+      assert.ok(retour.taxibus, 'un taxibus existe, lui');
+      assert.notEqual(retour.taxibus.limite, undefined);
+    }
+  });
+
+  it('laisse le temps de descendre avant de compter le départ', () => {
+    const retours = retoursAvecTaxibus(donnees, { ...options,
+                                                  correspondance: 5 });
+    for (const retour of retours.filter((r) => r.ligne10)) {
+      assert.ok(retour.ligne10.attente >= 5,
+        `${retour.arrivee.heure} : ${retour.ligne10.attente} min`);
+      assert.ok(retour.ligne10.attente <= ATTENTE_MAX);
+    }
+  });
+
+  it('refuse de présenter le premier autobus du lendemain comme une '
+     + 'correspondance', () => {
+    const passages = passagesLigne10(donnees, TERMINUS, MARDI);
+    // Une arrivée à 01:30, alors que la ligne 10 ne reprend qu'à 04:45.
+    const tardive = instant(MARDI, enMinutes('01:30'));
+    assert.equal(correspondanceLigne10(passages, tardive), null);
+    // La même règle, énoncée sur une liste minimale.
+    const loin = [{ passage: { instant: tardive + ATTENTE_MAX + 1,
+                               heure: '03:01' } }];
+    assert.equal(correspondanceLigne10(loin, tardive), null);
+    const juste = [{ passage: { instant: tardive + ATTENTE_MAX,
+                                heure: '03:00' } }];
+    assert.ok(correspondanceLigne10(juste, tardive));
+  });
+
+  it('signale une correspondance trop serrée pour être tenue', () => {
+    const base = instant(MARDI, enMinutes('12:00'));
+    const serree = correspondanceLigne10(
+      [{ passage: { instant: base + 8, heure: '12:08' } }], base, 5);
+    assert.equal(serree.jeu, 3);
+    assert.equal(serree.serree, true);
+    const large = correspondanceLigne10(
+      [{ passage: { instant: base + 20, heure: '12:20' } }], base, 5);
+    assert.equal(large.serree, false);
+  });
+
+  it('ne propose rien à un arrêt que la ligne 10 ne dessert pas', () => {
+    const passages = passagesLigne10(donnees,
+      'Mairie St-Roch-de-Richelieu - 1111 rue du Parc', MARDI);
+    assert.deepEqual(passages, []);
+    assert.equal(correspondanceLigne10(passages, instant(MARDI, 600)), null);
   });
 });

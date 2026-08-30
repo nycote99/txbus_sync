@@ -415,6 +415,10 @@ a { color: var(--marque); }
 
 .note--alerte { color: var(--alerte); }
 
+/* Le prolongement en ligne 10 se lit après le taxibus, sans lui disputer la
+   première place : c'est l'heure limite de réservation qui décide du trajet. */
+.retour__suite--secondaire { opacity: .92; }
+
 .vide {
   padding: 1.5rem 1rem;
   text-align: center;
@@ -674,7 +678,9 @@ a { color: var(--marque); }
 .bandeau--info { background: var(--marque-clair); color: var(--marque); }
 .bandeau--alerte { background: var(--alerte-clair); color: var(--alerte); }
 .bandeau--arret { background: var(--arret-clair); color: var(--arret); }
-.bandeau > div { min-width: 0; }
+/* Grille plutôt que flux : le bandeau porte désormais plusieurs phrases, qui
+   se colleraient l'une à l'autre en inline. */
+.bandeau > div { min-width: 0; display: grid; gap: .2rem; }
 .bandeau strong { display: block; }
 
 .pied {

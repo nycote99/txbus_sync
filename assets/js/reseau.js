@@ -362,6 +362,61 @@ export function departsTaxibus(donnees, options) {
  */
 export const JEU_SERRE = 5;
 
+/** Au-dela de cette attente, la ligne 10 n'est plus une correspondance. */
+export const ATTENTE_MAX = 90;
+
+/**
+ * Passages de la ligne 10 a un arret, tous sens confondus, sur quatre jours.
+ *
+ * On les prepare une fois pour toutes : la vue des retours interroge le meme
+ * arret trente-quatre fois de suite, une par express de la journee.
+ */
+export function passagesLigne10(donnees, arret, jourDeService) {
+  const resultat = [];
+  for (let decalage = 0; decalage < 4; decalage += 1) {
+    const jour = decalerDate(jourDeService, decalage);
+    const profil = profilDuJour(jour, donnees);
+    Object.keys(LIGNES.ligne10.directions).forEach((direction) => {
+      voyages(donnees, 'ligne10', direction, jour, profil).forEach((voyage) => {
+        const passage = voyage.passages.find((p) => p.arret === arret);
+        if (passage) resultat.push({ voyage, passage, jour, direction });
+      });
+    });
+  }
+  return resultat.sort((a, b) => a.passage.instant - b.passage.instant);
+}
+
+/**
+ * Prolongement du retour par la ligne 10, quand l'arret de descente est sur son
+ * parcours.
+ *
+ * C'est l'autre facon de finir le trajet, et la seule qui ne se reserve pas.
+ * Mesure sur un mardi : trente-deux des trente-quatre retours de Longueuil ont
+ * une ligne 10 au Terminus des Promenades, dix-huit minutes d'attente
+ * mediane. Les deux qui n'en ont pas sont ceux de la nuit — precisement ceux
+ * dont le taxibus devait etre reserve avant la fermeture du terminus.
+ */
+export function correspondanceLigne10(passages, arriveeInstant,
+                                      correspondance = 5) {
+  const suivant = passages
+    .find((entree) => entree.passage.instant >= arriveeInstant + correspondance);
+  if (!suivant) return null;
+  // Au-dela, ce n'est plus une correspondance mais le premier autobus du
+  // lendemain : sur ce reseau les vraies attentes vont de 6 a 37 minutes, et
+  // apres le dernier passage de la ligne 10 la suivante est a plus de trois
+  // heures. Dire « aucune » est alors la reponse honnete.
+  if (suivant.passage.instant - arriveeInstant > ATTENTE_MAX) return null;
+  const attente = suivant.passage.instant - arriveeInstant;
+  return {
+    ...suivant,
+    heure: suivant.passage.heure,
+    instantDepart: suivant.passage.instant,
+    attente,
+    jeu: attente - correspondance,
+    serree: attente - correspondance <= JEU_SERRE,
+  };
+}
+
 export function retoursAvecTaxibus(donnees, options) {
   const {
     ligne = 'express', direction = 'sorel', embarquement, descente,
@@ -372,6 +427,7 @@ export function retoursAvecTaxibus(donnees, options) {
   const profil = profilDuJour(jourDeService, donnees);
   const zone = donnees.zones_des_arrets[descente];
   const plancher = aPartirDe === null ? -Infinity : aPartirDe;
+  const passagesL10 = passagesLigne10(donnees, descente, jourDeService);
   const resultat = [];
 
   for (const voyage of voyages(donnees, ligne, direction, jourDeService, profil)) {
@@ -412,6 +468,9 @@ export function retoursAvecTaxibus(donnees, options) {
       zoneDestination,
       taxibus,
       taxibusPrevu,
+      // L'autre prolongement possible, celui qui ne se reserve pas.
+      ligne10: correspondanceLigne10(passagesL10, arriveeReelle.instant,
+        correspondance),
       attente: marge,
       marge,
       // Le retard a fait glisser la correspondance sur un départ ultérieur.

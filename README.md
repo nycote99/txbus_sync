@@ -145,6 +145,19 @@ heure publiée s'en trouvait modifiée. Les colonnes qu'aucun voyage GTFS
 n'explique — les trois départs express revus depuis janvier — gardent leurs
 seuls points de passage publiés.
 
+**Le retour peut aussi se finir en ligne 10.** Chaque retour affiche, sous le
+verdict du taxibus, le prochain départ de la ligne 10 à l'arrêt de descente —
+l'autre prolongement, et le seul qui ne se réserve pas. Mesuré sur un mardi :
+32 des 34 retours de Longueuil ont une ligne 10 au Terminus des Promenades,
+attente médiane 18 minutes. Les deux qui n'en ont pas sont ceux de la nuit,
+0 h 58 et 1 h 48 — précisément ceux dont le taxibus devait être réservé avant
+la fermeture du terminus. L'écran le dit à ces deux lignes-là, parce que c'est
+là que l'heure limite décide vraiment du trajet.
+
+Au-delà de quatre-vingt-dix minutes d'attente, aucune correspondance n'est
+proposée : après le dernier passage de la ligne 10, le suivant est à plus de
+trois heures, et l'annoncer serait mentir sur ce qu'est une correspondance.
+
 **Arrêts près de moi.** Quarante-trois arrêts dans une liste déroulante ne
 disent pas lequel est au coin de la rue ; la position du navigateur, elle, le
 dit. Elle ne quitte jamais l'appareil : les coordonnées des arrêts sont
