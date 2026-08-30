@@ -16,6 +16,12 @@
 <body>
 <a class="saut-contenu" href="#contenu">Aller au contenu</a>
 
+<!-- Ce que l'écran change tout seul et qu'on ne verrait pas : l'arrivée ou la
+     perte du suivi en direct, et les avis de service. Les comptes à rebours,
+     eux, ne sont pas annoncés — les faire lire toutes les trente secondes
+     rendrait l'application inécoutable. -->
+<p class="hors-ecran" id="annonces" role="status" aria-live="polite"></p>
+
 <div class="appli">
   <header class="entete">
     <div class="entete__marque">

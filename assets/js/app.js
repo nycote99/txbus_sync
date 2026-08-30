@@ -102,8 +102,43 @@ async function rafraichirTempsReel() {
   if (!reference || document.hidden) return;
   const etat = await chargerTempsReel(reference);
   const changement = resume(etat) !== resume(tempsReel);
+  const avant = tempsReel;
   tempsReel = etat;
-  if (changement) dessiner();
+  if (!changement) return;
+  annoncer(etat, avant);
+  dessiner();
+}
+
+/**
+ * Ce que le flux vient de changer, dit une fois, a voix basse.
+ *
+ * On n'annonce pas les comptes a rebours : les faire relire toutes les trente
+ * secondes rendrait l'application inecoutable. On annonce l'apparition et la
+ * perte du suivi en direct — le moment ou les heures affichees cessent d'etre
+ * observees pour redevenir estimees — et les avis de service.
+ */
+function annoncer(etat, avant) {
+  const region = document.getElementById('annonces');
+  if (!region) return;
+
+  if (!etat) {
+    region.textContent = avant
+      ? 'Suivi en direct interrompu : les heures affichées redeviennent '
+        + 'estimées d’après l’horaire.' : '';
+    return;
+  }
+  const nouveaux = etat.alertes.filter((alerte) => !(avant && avant.alertes
+    .some((connue) => connue.titre === alerte.titre)));
+  if (nouveaux.length) {
+    region.textContent = `Avis de la STC : ${nouveaux[0].titre}`;
+    return;
+  }
+  if (!avant) {
+    region.textContent = `Suivi en direct actif : ${etat.vehicules.length} `
+      + `véhicule${etat.vehicules.length > 1 ? 's' : ''} en circulation.`;
+    return;
+  }
+  region.textContent = '';
 }
 
 function resume(etat) {
@@ -145,9 +180,22 @@ function dessiner() {
   majHorloge(ctx.horloge);
   majEtatDuJour(ctx);
 
+  // La vue est reconstruite entiere a chaque rendu — toutes les trente
+  // secondes, et a chaque arrivee du flux temps reel. Sans ce report, le focus
+  // retombe sur le document : au clavier ou au lecteur d'ecran, on se retrouve
+  // renvoye en haut de page toutes les trente secondes.
+  const focusAvant = conteneur.contains(document.activeElement)
+    ? document.activeElement.dataset.focus : null;
+
   const positionDefilement = window.scrollY;
   vider(conteneur).append(VUES[vueActive].rendre(ctx));
   window.scrollTo({ top: positionDefilement });
+
+  if (focusAvant) {
+    const cible = conteneur
+      .querySelector(`[data-focus="${CSS.escape(focusAvant)}"]`);
+    if (cible) cible.focus({ preventScroll: true });
+  }
   ecrireAncre(vueActive, etatVue);
 
   document.querySelectorAll('.nav__lien').forEach((bouton) => {

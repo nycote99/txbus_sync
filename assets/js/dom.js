@@ -30,7 +30,12 @@ export function vider(element) {
 }
 
 export function champSelect(etiquette, valeurs, valeurActive, auChangement) {
-  const select = h('select', { onchange: (e) => auChangement(e.target.value) },
+  const select = h('select', {
+    onchange: (e) => auChangement(e.target.value),
+    // Repere stable d'un rendu a l'autre : la vue est reconstruite toutes les
+    // trente secondes, et le focus doit revenir au meme controle.
+    dataset: { focus: `champ:${etiquette}` },
+  },
     valeurs.map(({ valeur, texte, desactive }) => h('option', {
       value: valeur,
       selected: valeur === valeurActive,
@@ -44,6 +49,7 @@ export function segments(options, valeurActive, auChangement, etiquette) {
     options.map(({ valeur, texte }) => h('button', {
       type: 'button',
       'aria-pressed': String(valeur === valeurActive),
+      dataset: { focus: `segment:${etiquette}:${valeur}` },
       onclick: () => auChangement(valeur),
     }, texte)));
 }

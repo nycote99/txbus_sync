@@ -258,6 +258,40 @@ et regarde quels PDF elles pointent *aujourd'hui*. Il signale trois choses :
 changements d'horaire de la STC prennent effet — et ouvre une issue au premier
 écart, en la mettant à jour plutôt qu'en accumulant une issue par semaine.
 
+## Accessibilité
+
+Mesurée plutôt que déclarée : un script parcourt les cinq vues dans les deux
+thèmes et calcule le ratio de contraste de chaque texte rendu contre son fond
+réel, vérifie que tout élément focusable porte un nom accessible et que les
+titres ne sautent pas de niveau. Trois défauts réels en sont sortis, tous
+corrigés :
+
+| Défaut | Ratio | Correction |
+|---|---|---|
+| « Réservable » sur sa pastille, thème clair | 4,30 | `--ok` assombri à `#147a3a` |
+| « À réserver avant d'arriver » et le bandeau d'alerte, thème clair | 4,46 | `--alerte` assombri à `#b05109` |
+| « Réserver », thème sombre | 2,21 | nouveau jeton `--sur-marque` : `--marque` est une teinte *claire* en thème sombre, le blanc n'y tenait pas |
+
+Le script s'était d'abord trompé lui-même : `getComputedStyle` rend
+`color(srgb 1 1 1 / 0.94)` pour un `color-mix`, avec des composantes de 0 à 1
+et non de 0 à 255. Lues comme des octets, elles faisaient passer le blanc pour
+du noir et inventaient cinq défauts de navigation qui n'existaient pas.
+
+**Le focus survit aux redessins.** La vue est reconstruite entière toutes les
+trente secondes et à chaque arrivée du flux temps réel ; le focus retombait
+alors sur le document. Au clavier ou au lecteur d'écran, on était renvoyé en
+haut de page toutes les trente secondes. Chaque contrôle porte maintenant un
+repère stable et le focus lui revient — sans jamais être volé à qui se trouve
+ailleurs que dans la vue.
+
+**Ce qui s'annonce, et ce qui ne s'annonce pas.** Les comptes à rebours ne sont
+pas des régions vivantes : les faire relire toutes les trente secondes rendrait
+l'application inécoutable. Une région discrète annonce en revanche ce qu'on ne
+peut pas voir venir — l'arrivée et la perte du suivi en direct, c'est-à-dire le
+moment où les heures affichées cessent d'être observées pour redevenir
+estimées, et les nouveaux avis de service. L'horloge d'en-tête porte
+`aria-live="off"`.
+
 ## Vérifications
 
 `.github/workflows/verifier.yml` exécute les deux contrôles sur chaque *pull
