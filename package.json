@@ -1,0 +1,10 @@
+{
+  "name": "sorel-transit",
+  "private": true,
+  "type": "module",
+  "description": "Déclare les fichiers .js du dépôt comme modules ES, pour que node --test puisse les charger tels que le navigateur les charge. Aucune dépendance : l'application reste servie telle quelle.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "verifier": "python3 tools/verifier_donnees.py && python3 tools/verifier_gtfs.py && python3 tools/verifier_service_worker.py"
+  }
+}

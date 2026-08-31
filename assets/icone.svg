@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sorel Transit">
+  <rect width="64" height="64" rx="14" fill="#0b4f79"/>
+  <rect x="14" y="12" width="36" height="30" rx="6" fill="#fff"/>
+  <rect x="18" y="17" width="28" height="11" rx="2.5" fill="#0b4f79"/>
+  <circle cx="22" cy="35" r="3" fill="#0b4f79"/>
+  <circle cx="42" cy="35" r="3" fill="#0b4f79"/>
+  <rect x="17" y="44" width="6" height="7" rx="2" fill="#fff"/>
+  <rect x="41" y="44" width="6" height="7" rx="2" fill="#fff"/>
+  <path d="M8 52h48" stroke="#f0a06a" stroke-width="4" stroke-linecap="round"/>
+</svg>

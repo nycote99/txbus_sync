@@ -1,0 +1,49 @@
+name: Déployer sur GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deployer:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Exécuter les tests
+        run: node --test tests/*.test.js
+
+      - name: Vérifier les données d'horaire
+        run: python3 tools/verifier_donnees.py
+
+      - name: Vérifier la coquille hors ligne
+        run: python3 tools/verifier_service_worker.py
+
+      - name: Vérifier la table de référence GTFS
+        run: python3 tools/verifier_gtfs.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - id: deploiement
+        uses: actions/deploy-pages@v4
