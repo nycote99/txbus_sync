@@ -1,5 +1,9 @@
 # Sorel Transit
 
+[![Vérifier](https://github.com/nycote99/txbus_sync/actions/workflows/verifier.yml/badge.svg)](https://github.com/nycote99/txbus_sync/actions/workflows/verifier.yml)
+[![Lighthouse](https://github.com/nycote99/txbus_sync/actions/workflows/lighthouse.yml/badge.svg)](https://github.com/nycote99/txbus_sync/actions/workflows/lighthouse.yml)
+[![CodeQL](https://github.com/nycote99/txbus_sync/actions/workflows/codeql.yml/badge.svg)](https://github.com/nycote99/txbus_sync/actions/workflows/codeql.yml)
+
 Application web qui réunit en un seul endroit les services de la
 [Société de transport Pierre-De Saurel](https://stcpierredesaurel.ca/) :
 la ligne 10, les circuits express 750-753 et le taxibus régional.
@@ -129,6 +133,44 @@ n'a que quatre types.
 
 Le taxibus n'est pas dans le GTFS : il reste entièrement décrit par les fiches
 PDF, et ses heures limites de réservation sont calculées par l'application.
+
+### Les fichiers de `data/`
+
+Trois fichiers JSON, tous produits par les scripts de `tools/` ; aucun n'est
+édité à la main, sauf les références tenues en fin de `parse_horaires.py`
+(zones, tarifs, règles, coordonnées), qui y vivent avant génération.
+
+**`horaires.json`** (~150 ko) — produit par `parse_horaires.py` depuis les
+fiches PDF officielles. Il porte la `version_horaire` en vigueur
+(« 17 août 2026 »), les grilles `ligne10` et `express` par profil (`semaine`,
+`fin_de_semaine`) et par direction, les 21 groupes de départs `taxibus`
+(service, origines, destinations, heures), les 6 `zones` et la zone de chaque
+arrêt d'autobus (`zones_des_arrets`), les `tarifs` et les `feries`, le
+`terminus` (coordonnées et heures d'ouverture par profil — c'est sa fermeture
+qui borne les réservations du soir), les `sources` (adresses des PDF) et les
+`liens` officiels. Les `regles` y fixent les constantes du moteur de
+réservation : 30 minutes d'avance, fenêtre de réservation en ligne de
+14 jours, présence avant départ.
+
+**`reseau-gtfs.json`** (~56 ko) — produit par `parse_gtfs.py` et
+`parcours_gtfs.py` depuis le GTFS statique de Zenbus. C'est la table qui donne
+un nom aux identifiants du flux temps réel : 5 `routes`, 176 `arrets`,
+224 `voyages`, les `traces` des parcours par direction, et `flux_temps_reel`,
+l'adresse du flux GTFS-RT.
+
+**`empreintes-sources.json`** (~1 ko) — la référence de la veille : empreintes
+SHA-256 des six fiches PDF connues, version du flux GTFS (`feed_version`,
+dates de validité) et adresses que pointent les trois pages horaires du site
+de la STC. `veiller_sources.py --enregistrer` le régénère après chaque
+extraction.
+
+**Fréquence de synchronisation.** La veille est automatique et hebdomadaire :
+chaque lundi à 11 h UTC (7 h à Sorel-Tracy), `.github/workflows/veille.yml`
+relit les pages horaires et compare fiches et GTFS aux empreintes ; le moindre
+écart ouvre une issue. L'extraction elle-même reste manuelle, environ deux
+fois l'an, quand la STC publie de nouvelles fiches — la procédure vit plus
+bas, « Mettre à jour les horaires ». Le flux GTFS-RT n'est pas synchronisé du
+tout : le navigateur l'interroge directement, toutes les 30 secondes.
 
 ### Ce que chaque source a le droit de dire
 
