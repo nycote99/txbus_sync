@@ -1,0 +1,39 @@
+name: Signaler un écart d'horaire
+description: Une heure affichée diffère de la fiche officielle de la STC.
+title: '[Horaire] '
+labels: [horaires]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Les horaires de l'application sont extraits des fiches PDF de la STC
+        et vérifiés chaque lundi par la veille automatique. Un écart peut
+        donc être une fiche nouvellement publiée que l'extraction n'a pas
+        encore reprise — ce signalement aide à le reprendre plus vite.
+  - type: dropdown
+    id: service
+    attributes:
+      label: Service concerné
+      options:
+        - Ligne 10
+        - Express 750
+        - Express 751
+        - Express 752
+        - Express 753
+        - Taxibus
+    validations:
+      required: true
+  - type: input
+    id: arret
+    attributes:
+      label: Arrêt ou trajet
+      placeholder: 'Ex. : Terminus des Promenades, départ de 18 h 30 vers Longueuil'
+    validations:
+      required: true
+  - type: textarea
+    id: ecart
+    attributes:
+      label: L'écart constaté
+      description: L'heure affichée dans l'application et celle de la fiche officielle.
+    validations:
+      required: true

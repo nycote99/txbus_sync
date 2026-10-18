@@ -1,0 +1,19 @@
+name: Proposer une amélioration
+description: Une idée pour rendre l'application plus utile ou plus claire.
+title: '[Idée] '
+labels: [enhancement]
+body:
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Le besoin
+      description: Qu'est-ce qui est difficile ou impossible à faire aujourd'hui ?
+    validations:
+      required: true
+  - type: textarea
+    id: proposition
+    attributes:
+      label: La proposition
+      description: Ce que l'application pourrait faire, et pour qui.
+    validations:
+      required: true

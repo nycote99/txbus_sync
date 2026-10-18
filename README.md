@@ -12,6 +12,23 @@ Elle répond à trois questions que le site officiel oblige aujourd’hui à pos
 à trois endroits différents : _quand passe mon autobus_, _où est-il en ce
 moment_, et surtout _jusqu’à quand puis-je encore réserver mon taxibus_.
 
+**Documentation du projet** : [Architecture](ARCHITECTURE.md) ·
+[Contribuer](CONTRIBUTING.md) · [Journal des changements](CHANGELOG.md) ·
+[Sécurité](SECURITY.md) · [Code de conduite](CODE_OF_CONDUCT.md)
+
+## Sommaire
+
+- [Ce que l’application fait](#ce-que-lapplication-fait)
+- [Structure](#structure)
+- [Sources de données](#sources-de-données)
+- [Développement](#développement)
+- [Mettre à jour les horaires](#mettre-à-jour-les-horaires)
+- [Accessibilité](#accessibilité)
+- [Vérifications](#vérifications)
+- [Déploiement](#déploiement)
+- [Portée et limites](#portée-et-limites)
+- [Licence](#licence)
+
 ## Ce que l’application fait
 
 **Heures limites de réservation du taxibus.** C’est la fonction centrale. Pour
