@@ -8,9 +8,7 @@
  */
 
 import { h, s } from '../dom.js';
-import {
-  cadre, chemin, couper, projeter, surLeTrace, traceDeDirection,
-} from '../plan.js';
+import { cadre, chemin, couper, projeter, surLeTrace, traceDeDirection } from '../plan.js';
 import { LIGNES, position } from '../reseau.js';
 import { vehiculeDuVoyage } from '../tempsreel.js';
 
@@ -23,47 +21,52 @@ const COTE = 100;
  * Les traces viennent de la table GTFS, facultative : sans elle l'ecran perd
  * son plan et garde tout le reste.
  */
-export function planDuVoyage(voyage, instantCourant, reference, etatTempsReel,
-                             arretChoisi = null) {
+export function planDuVoyage(voyage, instantCourant, reference, etatTempsReel, arretChoisi = null) {
   const trace = traceDeDirection(reference, voyage.ligne, voyage.direction);
   if (!trace || trace.length < 2) return null;
 
   const arrets = arretsSitues(voyage, reference, arretChoisi);
   const boite = cadre(trace, COTE, COTE);
-  const situation = situer(voyage, instantCourant, etatTempsReel, trace,
-    reference);
-  const decoupe = situation
-    ? couper(trace, situation.avancement) : { parcouru: [], reste: trace };
+  const situation = situer(voyage, instantCourant, etatTempsReel, trace, reference);
+  const decoupe = situation ? couper(trace, situation.avancement) : { parcouru: [], reste: trace };
 
   const couleur = LIGNES[voyage.ligne].couleur;
 
-  return h('figure.plan',
-    s('svg.plan__dessin', {
-      viewBox: `0 0 ${COTE} ${COTE}`,
-      role: 'img',
-      'aria-label': etiquette(voyage, situation),
-    },
-    s('path.plan__reste', { d: chemin(boite, decoupe.reste) }),
-    s(`path.plan__fait.plan__fait--${couleur}`,
-      { d: chemin(boite, decoupe.parcouru) }),
-    arrets.map((arret) => {
-      const [x, y] = projeter(boite, [arret.lat, arret.lon]);
-      return s(`circle.plan__arret${arret.choisi ? '.plan__arret--choisi' : ''}`,
-        { cx: x, cy: y, r: arret.choisi ? 1.8 : 0.9 });
-    }),
-    situation ? marqueur(boite, situation, couleur) : null),
-    h('figcaption.note', legende(situation)));
+  return h(
+    'figure.plan',
+    s(
+      'svg.plan__dessin',
+      {
+        viewBox: `0 0 ${COTE} ${COTE}`,
+        role: 'img',
+        'aria-label': etiquette(voyage, situation),
+      },
+      s('path.plan__reste', { d: chemin(boite, decoupe.reste) }),
+      s(`path.plan__fait.plan__fait--${couleur}`, { d: chemin(boite, decoupe.parcouru) }),
+      arrets.map((arret) => {
+        const [x, y] = projeter(boite, [arret.lat, arret.lon]);
+        return s(`circle.plan__arret${arret.choisi ? '.plan__arret--choisi' : ''}`, {
+          cx: x,
+          cy: y,
+          r: arret.choisi ? 1.8 : 0.9,
+        });
+      }),
+      situation ? marqueur(boite, situation, couleur) : null,
+    ),
+    h('figcaption.note', legende(situation)),
+  );
 }
 
 /** Le vehicule, en direct s'il l'est, estime sinon. */
 function marqueur(boite, situation, couleur) {
   const [x, y] = projeter(boite, situation.point);
   return [
-    situation.direct
-      ? s('circle.plan__halo', { cx: x, cy: y, r: 4.5 }) : null,
-    s(`circle.plan__vehicule.plan__vehicule--${couleur}`
-      + (situation.direct ? '' : '.plan__vehicule--estime'),
-    { cx: x, cy: y, r: 2.4 }),
+    situation.direct ? s('circle.plan__halo', { cx: x, cy: y, r: 4.5 }) : null,
+    s(
+      `circle.plan__vehicule.plan__vehicule--${couleur}` +
+        (situation.direct ? '' : '.plan__vehicule--estime'),
+      { cx: x, cy: y, r: 2.4 },
+    ),
   ];
 }
 
@@ -76,15 +79,17 @@ function marqueur(boite, situation, couleur) {
  * qu'on sait.
  */
 function situer(voyage, instantCourant, etatTempsReel, trace, reference) {
-  const vehicule = etatTempsReel
-    ? vehiculeDuVoyage(etatTempsReel, voyage) : null;
+  const vehicule = etatTempsReel ? vehiculeDuVoyage(etatTempsReel, voyage) : null;
 
-  if (vehicule && Number.isFinite(vehicule.latitude)
-      && Number.isFinite(vehicule.longitude)) {
+  if (vehicule && Number.isFinite(vehicule.latitude) && Number.isFinite(vehicule.longitude)) {
     const point = [vehicule.latitude, vehicule.longitude];
     const proche = surLeTrace(trace, point);
-    return { point, avancement: proche ? proche.avancement : 0, direct: true,
-             ecart: proche ? proche.ecart : null };
+    return {
+      point,
+      avancement: proche ? proche.avancement : 0,
+      direct: true,
+      ecart: proche ? proche.ecart : null,
+    };
   }
 
   const etat = position(voyage, instantCourant);
@@ -93,8 +98,11 @@ function situer(voyage, instantCourant, etatTempsReel, trace, reference) {
   const situe = pointDuPassage(etat, reference);
   if (!situe) return null;
   const proche = surLeTrace(trace, situe);
-  return { point: proche ? proche.point : situe,
-           avancement: proche ? proche.avancement : 0, direct: false };
+  return {
+    point: proche ? proche.point : situe,
+    avancement: proche ? proche.avancement : 0,
+    direct: false,
+  };
 }
 
 /** Position estimee entre deux arrets, interpolee sur le segment. */
@@ -103,8 +111,7 @@ function pointDuPassage(etat, reference) {
   const vers = reference.arrets[etat.vers && etat.vers.id];
   if (!depuis || !vers) return null;
   const part = etat.partSegment || 0;
-  return [depuis.lat + (vers.lat - depuis.lat) * part,
-    depuis.lon + (vers.lon - depuis.lon) * part];
+  return [depuis.lat + (vers.lat - depuis.lat) * part, depuis.lon + (vers.lon - depuis.lon) * part];
 }
 
 /**
@@ -126,8 +133,10 @@ function etiquette(voyage, situation) {
   const nom = LIGNES[voyage.ligne].nom;
   const sens = LIGNES[voyage.ligne].directions[voyage.direction];
   if (!situation) return `Parcours de la ${nom}, ${sens}`;
-  return `Parcours de la ${nom}, ${sens} — véhicule situé à `
-    + `${Math.round(situation.avancement * 100)} % du trajet`;
+  return (
+    `Parcours de la ${nom}, ${sens} — véhicule situé à ` +
+    `${Math.round(situation.avancement * 100)} % du trajet`
+  );
 }
 
 function legende(situation) {
@@ -138,8 +147,7 @@ function legende(situation) {
   // Un ecart franc du trace n'est pas une erreur a masquer : detour, deviation,
   // ou GPS imprecis. On l'affiche.
   if (situation.ecart !== null && situation.ecart > 150) {
-    return `Position GPS en direct, à ${Math.round(situation.ecart)} m du `
-      + 'parcours habituel.';
+    return `Position GPS en direct, à ${Math.round(situation.ecart)} m du ` + 'parcours habituel.';
   }
   return 'Position GPS en direct.';
 }

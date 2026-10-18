@@ -9,13 +9,31 @@ import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
 import {
-  dateDepuisNumero, enHeure, enMinutes, instant, profilDuJour, versEpoch,
+  dateDepuisNumero,
+  enHeure,
+  enMinutes,
+  instant,
+  profilDuJour,
+  versEpoch,
 } from '../assets/js/calendrier.js';
 import {
-  ATTENTE_MAX, LIGNES, arretsDeDirection, arretsDeLigne, correspondanceLigne10,
-  delai, departsTaxibus, destinationsDepuis, etatReservation, grille,
-  limiteReservation, passagesLigne10, position, prochainsPassages,
-  retoursAvecTaxibus, vehiculesEnCirculation, voyages,
+  ATTENTE_MAX,
+  LIGNES,
+  arretsDeDirection,
+  arretsDeLigne,
+  correspondanceLigne10,
+  delai,
+  departsTaxibus,
+  destinationsDepuis,
+  etatReservation,
+  grille,
+  limiteReservation,
+  passagesLigne10,
+  position,
+  prochainsPassages,
+  retoursAvecTaxibus,
+  vehiculesEnCirculation,
+  voyages,
 } from '../assets/js/reseau.js';
 
 import { MARDI, lireHoraires } from './aide.js';
@@ -55,8 +73,7 @@ describe('heure limite de réservation du taxibus', () => {
     assert.equal(motif, 'fermeture_terminus');
     assert.equal(heure(limite), '20:30');
     // La veille, c’est-à-dire le lundi : la limite précède le départ d’un jour.
-    assert.equal(limite, instant(
-      { annee: 2026, mois: 8, jour: 31 }, enMinutes('20:30')));
+    assert.equal(limite, instant({ annee: 2026, mois: 8, jour: 31 }, enMinutes('20:30')));
   });
 
   it('bascule sur 16:45 la fin de semaine', () => {
@@ -77,8 +94,7 @@ describe('heure limite de réservation du taxibus', () => {
 
     const { limite, motif } = limiteReservation(donnees, noel, '10:15');
     assert.equal(motif, 'fermeture_terminus');
-    assert.equal(limite, instant(
-      { annee: 2026, mois: 12, jour: 24 }, enMinutes('16:45')));
+    assert.equal(limite, instant({ annee: 2026, mois: 12, jour: 24 }, enMinutes('16:45')));
   });
 
   it('ne place jamais la limite après le départ', () => {
@@ -86,8 +102,7 @@ describe('heure limite de réservation du taxibus', () => {
       const jour = groupe.service === 'semaine' ? MARDI : SAMEDI;
       for (const depart of groupe.heures) {
         const { limite, instantDepart } = limiteReservation(donnees, jour, depart);
-        assert.ok(limite <= instantDepart - 30,
-          `${depart} : limite trop tardive`);
+        assert.ok(limite <= instantDepart - 30, `${depart} : limite trop tardive`);
       }
     }
   });
@@ -126,8 +141,12 @@ describe('départs de taxibus', () => {
     const arrivee = instant(MARDI, enMinutes('18:03'));
     const maintenant = instant(MARDI, enMinutes('07:00'));
     const [premier] = departsTaxibus(donnees, {
-      origine: '1', destination: '4-A',
-      maintenant, depuis: arrivee + 5, jourDeService: MARDI, limite: 1,
+      origine: '1',
+      destination: '4-A',
+      maintenant,
+      depuis: arrivee + 5,
+      jourDeService: MARDI,
+      limite: 1,
     });
     // Le départ suit l’arrivée…
     assert.ok(premier.instantDepart > arrivee);
@@ -138,8 +157,10 @@ describe('départs de taxibus', () => {
 
   it('rend les départs dans l’ordre chronologique', () => {
     const departs = departsTaxibus(donnees, {
-      origine: '1', maintenant: instant(MARDI, enMinutes('09:00')),
-      jourDeService: MARDI, limite: 10,
+      origine: '1',
+      maintenant: instant(MARDI, enMinutes('09:00')),
+      jourDeService: MARDI,
+      limite: 10,
     });
     assert.equal(departs.length, 10);
     for (let i = 1; i < departs.length; i += 1) {
@@ -149,8 +170,10 @@ describe('départs de taxibus', () => {
 
   it('déborde sur les jours suivants en fin de service', () => {
     const departs = departsTaxibus(donnees, {
-      origine: '1', maintenant: instant(MARDI, enMinutes('23:50')),
-      jourDeService: MARDI, limite: 5,
+      origine: '1',
+      maintenant: instant(MARDI, enMinutes('23:50')),
+      jourDeService: MARDI,
+      limite: 5,
     });
     assert.ok(departs.length > 0);
     assert.ok(departs.every((d) => d.instantDepart >= instant(MARDI, enMinutes('23:50'))));
@@ -160,8 +183,11 @@ describe('départs de taxibus', () => {
 describe('retour de Longueuil : les cas de référence', () => {
   const arriveesDuSoir = voyages(donnees, 'express', 'sorel', MARDI, profilMardi)
     .map((voyage) => voyage.arrivee)
-    .filter((arrivee) => arrivee.arret === 'Terminus des Promenades - STC'
-      && arrivee.instant >= instant(MARDI, enMinutes('17:00')));
+    .filter(
+      (arrivee) =>
+        arrivee.arret === 'Terminus des Promenades - STC' &&
+        arrivee.instant >= instant(MARDI, enMinutes('17:00')),
+    );
 
   it('compte quinze arrivées après 17 h', () => {
     assert.equal(arriveesDuSoir.length, 15);
@@ -170,25 +196,32 @@ describe('retour de Longueuil : les cas de référence', () => {
   it('a déjà fermé la réservation pour chacune d’elles', () => {
     for (const arrivee of arriveesDuSoir) {
       const [taxibus] = departsTaxibus(donnees, {
-        origine: '1', destination: '4-A',
+        origine: '1',
+        destination: '4-A',
         maintenant: instant(MARDI, enMinutes('04:00')),
-        depuis: arrivee.instant + 5, jourDeService: MARDI, limite: 1,
+        depuis: arrivee.instant + 5,
+        jourDeService: MARDI,
+        limite: 1,
       });
       assert.ok(taxibus, `aucun taxibus après ${arrivee.heure}`);
-      assert.ok(taxibus.limite < arrivee.instant,
-        `arrivée ${arrivee.heure} : la réservation devrait déjà être close`);
+      assert.ok(
+        taxibus.limite < arrivee.instant,
+        `arrivée ${arrivee.heure} : la réservation devrait déjà être close`,
+      );
     }
   });
 
   it('rabat sur la fermeture du terminus dès l’arrivée de 20:58', () => {
-    const tardives = arriveesDuSoir.filter(
-      (a) => a.instant >= instant(MARDI, enMinutes('20:58')));
+    const tardives = arriveesDuSoir.filter((a) => a.instant >= instant(MARDI, enMinutes('20:58')));
     assert.equal(tardives.length, 7);
     for (const arrivee of tardives) {
       const [taxibus] = departsTaxibus(donnees, {
-        origine: '1', destination: '4-A',
+        origine: '1',
+        destination: '4-A',
         maintenant: instant(MARDI, enMinutes('04:00')),
-        depuis: arrivee.instant + 5, jourDeService: MARDI, limite: 1,
+        depuis: arrivee.instant + 5,
+        jourDeService: MARDI,
+        limite: 1,
       });
       assert.equal(taxibus.motif, 'fermeture_terminus', `arrivée ${arrivee.heure}`);
       assert.equal(heure(taxibus.limite), '20:30', `arrivée ${arrivee.heure}`);
@@ -196,16 +229,20 @@ describe('retour de Longueuil : les cas de référence', () => {
   });
 
   it('ferme le dernier express avant même l’embarquement à Longueuil', () => {
-    const voyage = voyages(donnees, 'express', 'sorel', MARDI, profilMardi)
-      .find((v) => v.arrivee.heure === '23:18');
+    const voyage = voyages(donnees, 'express', 'sorel', MARDI, profilMardi).find(
+      (v) => v.arrivee.heure === '23:18',
+    );
     assert.ok(voyage, 'express arrivant à 23:18 introuvable');
     assert.equal(voyage.depart.arret, 'Terminus Longueuil (porte A7)');
     assert.equal(voyage.depart.heure, '22:20');
 
     const [taxibus] = departsTaxibus(donnees, {
-      origine: '1', destination: '4-A',
+      origine: '1',
+      destination: '4-A',
       maintenant: instant(MARDI, enMinutes('04:00')),
-      depuis: voyage.arrivee.instant + 5, jourDeService: MARDI, limite: 1,
+      depuis: voyage.arrivee.instant + 5,
+      jourDeService: MARDI,
+      limite: 1,
     });
     assert.equal(taxibus.heure, '00:15');
     assert.equal(heure(taxibus.limite), '20:30');
@@ -232,8 +269,10 @@ describe('grilles horaires', () => {
       for (let i = 1; i < voyage.passages.length; i += 1) {
         // Croissance large, et non stricte : deux arrêts distants de deux
         // cents mètres tombent dans la même minute d’horaire.
-        assert.ok(voyage.passages[i].instant >= voyage.passages[i - 1].instant,
-          `voyage de ${voyage.depart.heure} : passage ${i} recule`);
+        assert.ok(
+          voyage.passages[i].instant >= voyage.passages[i - 1].instant,
+          `voyage de ${voyage.depart.heure} : passage ${i} recule`,
+        );
       }
     }
   });
@@ -241,16 +280,16 @@ describe('grilles horaires', () => {
   it('n’expose que des arrêts rattachés à une zone de taxibus', () => {
     for (const ligne of Object.keys(LIGNES)) {
       for (const arret of arretsDeLigne(donnees, ligne)) {
-        assert.ok(arret.nom in donnees.zones_des_arrets,
-          `arrêt sans zone : ${arret.nom}`);
+        assert.ok(arret.nom in donnees.zones_des_arrets, `arrêt sans zone : ${arret.nom}`);
       }
     }
   });
 });
 
 describe('position estimée d’un véhicule', () => {
-  const voyage = voyages(donnees, 'ligne10', 'cegep', MARDI, profilMardi)
-    .find((v) => v.depart.heure === '09:05');
+  const voyage = voyages(donnees, 'ligne10', 'cegep', MARDI, profilMardi).find(
+    (v) => v.depart.heure === '09:05',
+  );
 
   it('annonce un départ à venir', () => {
     const etat = position(voyage, voyage.depart.instant - 10);
@@ -289,8 +328,11 @@ describe('prochains passages', () => {
   it('ne rend que des passages à venir, ordonnés', () => {
     const moment = instant(MARDI, enMinutes('09:00'));
     const passages = prochainsPassages(donnees, {
-      ligne: 'ligne10', arret: 'Hôtel-Dieu (Hôpital)',
-      maintenant: moment, jourDeService: MARDI, limite: 6,
+      ligne: 'ligne10',
+      arret: 'Hôtel-Dieu (Hôpital)',
+      maintenant: moment,
+      jourDeService: MARDI,
+      limite: 6,
     });
     assert.equal(passages.length, 6);
     for (let i = 0; i < passages.length; i += 1) {
@@ -303,9 +345,11 @@ describe('prochains passages', () => {
 
   it('bascule sur le lendemain après le dernier passage de la journée', () => {
     const passages = prochainsPassages(donnees, {
-      ligne: 'ligne10', arret: 'Terminus des Promenades - STC',
+      ligne: 'ligne10',
+      arret: 'Terminus des Promenades - STC',
       maintenant: instant(MARDI, enMinutes('01:30')) + 1440,
-      jourDeService: MARDI, limite: 2,
+      jourDeService: MARDI,
+      limite: 2,
     });
     assert.ok(passages.length > 0);
   });
@@ -353,15 +397,13 @@ describe('retours prolongés par un taxibus', () => {
   it('mesure l’attente entre la descente et le taxibus', () => {
     for (const retour of retoursAvecTaxibus(donnees, options)) {
       if (!retour.taxibus) continue;
-      assert.equal(retour.attente,
-        retour.taxibus.instantDepart - retour.arrivee.instant);
+      assert.equal(retour.attente, retour.taxibus.instantDepart - retour.arrivee.instant);
       assert.ok(retour.attente >= 5, 'la marge minimale doit être respectée');
     }
   });
 
   it('signale qu’il faut réserver avant même de monter dans l’autobus', () => {
-    const dernier = retoursAvecTaxibus(donnees, options)
-      .find((r) => r.arrivee.heure === '23:18');
+    const dernier = retoursAvecTaxibus(donnees, options).find((r) => r.arrivee.heure === '23:18');
     assert.equal(dernier.depart.heure, '22:20');
     assert.equal(dernier.taxibus.heure, '00:15');
     assert.equal(dernier.verdict.code, 'avant_embarquement');
@@ -369,8 +411,9 @@ describe('retours prolongés par un taxibus', () => {
   });
 
   it('compte les retours à réserver avant l’embarquement', () => {
-    const avantEmbarquement = retoursAvecTaxibus(donnees, options)
-      .filter((r) => r.verdict.code === 'avant_embarquement');
+    const avantEmbarquement = retoursAvecTaxibus(donnees, options).filter(
+      (r) => r.verdict.code === 'avant_embarquement',
+    );
     // Six express du soir vers Contrecœur : on quitte Longueuil après 20:30,
     // l’heure à laquelle le terminus a déjà fermé les réservations.
     assert.equal(avantEmbarquement.length, 6);
@@ -383,20 +426,22 @@ describe('retours prolongés par un taxibus', () => {
   it('compte les retours à réserver avant la descente, zone par zone', () => {
     // La proportion dépend de la zone visée : les départs de taxibus vers
     // Contrecœur et vers Sorel-Tracy ne tombent pas aux mêmes minutes.
-    const attendu = { '1': 29, '2-A': 27, '2-B': 28, '3': 28, '4-A': 27, '4-B': 27 };
+    const attendu = { 1: 29, '2-A': 27, '2-B': 28, 3: 28, '4-A': 27, '4-B': 27 };
     for (const [zone, ferme] of Object.entries(attendu)) {
-      const codes = retoursAvecTaxibus(donnees, { ...options, zoneDestination: zone })
-        .map((r) => r.verdict.code);
+      const codes = retoursAvecTaxibus(donnees, { ...options, zoneDestination: zone }).map(
+        (r) => r.verdict.code,
+      );
       assert.equal(codes.length, 34, `zone ${zone}`);
-      const avant = codes.filter((c) => c === 'avant_arrivee'
-        || c === 'avant_embarquement').length;
+      const avant = codes.filter((c) => c === 'avant_arrivee' || c === 'avant_embarquement').length;
       assert.equal(avant, ferme, `zone ${zone}`);
     }
   });
 
   it('ferme le verdict quand l’heure limite est déjà passée', () => {
     const [premier] = retoursAvecTaxibus(donnees, {
-      ...options, maintenant: instant(MARDI, enMinutes('12:00')), limite: 1,
+      ...options,
+      maintenant: instant(MARDI, enMinutes('12:00')),
+      limite: 1,
       aPartirDe: instant(MARDI, enMinutes('05:00')),
     });
     assert.equal(premier.verdict.code, 'ferme');
@@ -406,7 +451,8 @@ describe('retours prolongés par un taxibus', () => {
   it('ne retient que les départs postérieurs au plancher demandé', () => {
     const midi = instant(MARDI, enMinutes('12:00'));
     for (const retour of retoursAvecTaxibus(donnees, {
-      ...options, aPartirDe: midi,
+      ...options,
+      aPartirDe: midi,
     })) {
       assert.ok(retour.depart.instant >= midi);
     }
@@ -445,8 +491,7 @@ describe('arrêts d’une direction', () => {
   });
 
   it('rend une liste vide pour une direction inconnue', () => {
-    assert.deepEqual(
-      arretsDeDirection(donnees, 'express', 'inexistante', profilMardi), []);
+    assert.deepEqual(arretsDeDirection(donnees, 'express', 'inexistante', profilMardi), []);
   });
 });
 
@@ -465,34 +510,41 @@ describe('correspondance mise à l’épreuve du temps réel', () => {
    * l'application ne saurait pas distinguer ce flux d'un vrai.
    */
   function fluxAvecRetard(heureDepart, retardMinutes, annule = false) {
-    const voyage = voyages(donnees, 'express', 'sorel', MARDI, profilMardi)
-      .find((v) => v.depart.heure === heureDepart);
+    const voyage = voyages(donnees, 'express', 'sorel', MARDI, profilMardi).find(
+      (v) => v.depart.heure === heureDepart,
+    );
     // Le flux transporte des secondes epoch, pas les minutes internes de
     // l'application : la fixture doit faire la même conversion que Zenbus.
     const previsions = voyage.passages.map((passage) => {
       const jour = Math.floor(passage.instant / 1440);
-      const epoch = versEpoch(dateDepuisNumero(jour),
-        passage.instant - jour * 1440 + retardMinutes);
+      const epoch = versEpoch(
+        dateDepuisNumero(jour),
+        passage.instant - jour * 1440 + retardMinutes,
+      );
       return { arret: passage.arret, heure: epoch / 1000 };
     });
     return {
       horodatage: 0,
-      vehicules: [{
-        voyageId: 'essai', ligne: 'express', direction: 'sorel',
-        depart: heureDepart, arret: voyage.depart.arret, statut: 'en_route',
-      }],
+      vehicules: [
+        {
+          voyageId: 'essai',
+          ligne: 'express',
+          direction: 'sorel',
+          depart: heureDepart,
+          arret: voyage.depart.arret,
+          statut: 'en_route',
+        },
+      ],
       previsions: new Map([['essai', previsions]]),
       alertes: [],
-      annulations: annule
-        ? new Map([[`express|sorel|${heureDepart}`, {}]]) : new Map(),
+      annulations: annule ? new Map([[`express|sorel|${heureDepart}`, {}]]) : new Map(),
     };
   }
 
   it('mesure le jeu réel, attente moins battement', () => {
     // L’arrivée de 16:39 laisse six minutes avant le taxibus de 16:45 : en
     // retirant les cinq minutes de battement, il ne reste qu’une minute.
-    const retour = retoursAvecTaxibus(donnees, base)
-      .find((r) => r.arrivee.heure === '16:39');
+    const retour = retoursAvecTaxibus(donnees, base).find((r) => r.arrivee.heure === '16:39');
     assert.equal(retour.marge, 6);
     assert.equal(retour.jeu, 1);
     assert.equal(retour.margeServree, true);
@@ -500,8 +552,7 @@ describe('correspondance mise à l’épreuve du temps réel', () => {
   });
 
   it('ne signale pas une correspondance confortable', () => {
-    const retour = retoursAvecTaxibus(donnees, base)
-      .find((r) => r.jeu !== null && r.jeu > 15);
+    const retour = retoursAvecTaxibus(donnees, base).find((r) => r.jeu !== null && r.jeu > 15);
     assert.ok(retour, 'aucune correspondance large trouvée');
     assert.equal(retour.margeServree, false);
   });
@@ -509,7 +560,8 @@ describe('correspondance mise à l’épreuve du temps réel', () => {
   it('déclare la correspondance perdue quand le retard dépasse la marge', () => {
     // Six minutes de marge, huit minutes de retard : le taxibus est manqué.
     const retours = retoursAvecTaxibus(donnees, {
-      ...base, tempsReel: fluxAvecRetard('15:35', 8),
+      ...base,
+      tempsReel: fluxAvecRetard('15:35', 8),
     });
     const retour = retours.find((r) => r.depart.heure === '15:35');
 
@@ -523,12 +575,12 @@ describe('correspondance mise à l’épreuve du temps réel', () => {
 
   it('garde la correspondance quand le retard tient dans le jeu', () => {
     // On choisit un retour largement pourvu, puis un retard qui y tient.
-    const large = retoursAvecTaxibus(donnees, base)
-      .find((r) => r.jeu !== null && r.jeu >= 10);
+    const large = retoursAvecTaxibus(donnees, base).find((r) => r.jeu !== null && r.jeu >= 10);
     const retard = large.jeu - 2;
 
     const retour = retoursAvecTaxibus(donnees, {
-      ...base, tempsReel: fluxAvecRetard(large.depart.heure, retard),
+      ...base,
+      tempsReel: fluxAvecRetard(large.depart.heure, retard),
     }).find((r) => r.depart.heure === large.depart.heure);
 
     assert.equal(retour.arriveeReelle.ecart, retard);
@@ -537,23 +589,25 @@ describe('correspondance mise à l’épreuve du temps réel', () => {
   });
 
   it('perd la correspondance dès que le retard dépasse le jeu, d’une minute', () => {
-    const serre = retoursAvecTaxibus(donnees, base)
-      .find((r) => r.jeu === 1);
+    const serre = retoursAvecTaxibus(donnees, base).find((r) => r.jeu === 1);
 
     const tenu = retoursAvecTaxibus(donnees, {
-      ...base, tempsReel: fluxAvecRetard(serre.depart.heure, 1),
+      ...base,
+      tempsReel: fluxAvecRetard(serre.depart.heure, 1),
     }).find((r) => r.depart.heure === serre.depart.heure);
     assert.equal(tenu.correspondancePerdue, false);
 
     const perdu = retoursAvecTaxibus(donnees, {
-      ...base, tempsReel: fluxAvecRetard(serre.depart.heure, 2),
+      ...base,
+      tempsReel: fluxAvecRetard(serre.depart.heure, 2),
     }).find((r) => r.depart.heure === serre.depart.heure);
     assert.equal(perdu.correspondancePerdue, true);
   });
 
   it('ne déclare rien de perdu quand une avance rapproche le taxibus', () => {
     const retour = retoursAvecTaxibus(donnees, {
-      ...base, tempsReel: fluxAvecRetard('15:35', -4),
+      ...base,
+      tempsReel: fluxAvecRetard('15:35', -4),
     }).find((r) => r.depart.heure === '15:35');
     assert.equal(retour.arriveeReelle.ecart, -4);
     assert.equal(retour.taxibus.heure, retour.taxibusPrevu.heure);
@@ -561,7 +615,8 @@ describe('correspondance mise à l’épreuve du temps réel', () => {
 
   it('marque un voyage annulé et lui refuse tout verdict de réservation', () => {
     const retour = retoursAvecTaxibus(donnees, {
-      ...base, tempsReel: fluxAvecRetard('15:35', 0, true),
+      ...base,
+      tempsReel: fluxAvecRetard('15:35', 0, true),
     }).find((r) => r.depart.heure === '15:35');
 
     assert.equal(retour.annule, true);
@@ -570,7 +625,8 @@ describe('correspondance mise à l’épreuve du temps réel', () => {
 
   it('laisse les autres voyages intacts quand un seul est annulé', () => {
     const retours = retoursAvecTaxibus(donnees, {
-      ...base, tempsReel: fluxAvecRetard('15:35', 0, true),
+      ...base,
+      tempsReel: fluxAvecRetard('15:35', 0, true),
     });
     assert.equal(retours.filter((r) => r.annule).length, 1);
     assert.ok(retours.filter((r) => !r.annule).length > 30);
@@ -592,30 +648,27 @@ describe('correspondance mise à l’épreuve du temps réel', () => {
  */
 describe('parcours complet des lignes', () => {
   it('expose les quarante-trois arrêts de la ligne 10', () => {
-    assert.equal(
-      arretsDeDirection(donnees, 'ligne10', 'cegep', profilMardi).length, 43);
-    assert.equal(
-      arretsDeDirection(donnees, 'ligne10', 'terminus', profilMardi).length, 41);
+    assert.equal(arretsDeDirection(donnees, 'ligne10', 'cegep', profilMardi).length, 43);
+    assert.equal(arretsDeDirection(donnees, 'ligne10', 'terminus', profilMardi).length, 41);
   });
 
   it('conserve les heures publiées aux points de passage des fiches', () => {
     // Trois repères relevés sur la fiche du 17 août 2026 : premier départ,
     // départ de pointe, dernier départ de la journée.
     const grilleCegep = grille(donnees, 'ligne10', 'cegep', profilMardi);
-    const terminus = grilleCegep.arrets
-      .find((arret) => arret.nom === 'Terminus des Promenades - STC');
+    const terminus = grilleCegep.arrets.find(
+      (arret) => arret.nom === 'Terminus des Promenades - STC',
+    );
     assert.equal(terminus.heures[0], '04:45');
     assert.equal(terminus.heures[terminus.heures.length - 1], '23:05');
-    const hopital = grilleCegep.arrets
-      .find((arret) => arret.nom === 'Hôtel-Dieu (Hôpital)');
+    const hopital = grilleCegep.arrets.find((arret) => arret.nom === 'Hôtel-Dieu (Hôpital)');
     assert.equal(hopital.heures[0], '04:58');
   });
 
   it('rattache chaque passage à son identifiant d’arrêt GTFS', () => {
     for (const ligne of Object.keys(LIGNES)) {
       for (const direction of Object.keys(LIGNES[ligne].directions)) {
-        for (const voyage of voyages(donnees, ligne, direction, MARDI,
-                                     profilMardi)) {
+        for (const voyage of voyages(donnees, ligne, direction, MARDI, profilMardi)) {
           for (const passage of voyage.passages) {
             assert.ok(passage.id, `passage sans identifiant : ${passage.arret}`);
           }
@@ -624,15 +677,19 @@ describe('parcours complet des lignes', () => {
     }
   });
 
-  it('donne le même nom aux deux côtés d’une intersection, mais pas le même '
-     + 'identifiant', () => {
-    const aller = grille(donnees, 'ligne10', 'cegep', profilMardi).arrets
-      .find((arret) => arret.nom === 'Marie-Victorin / Rivard');
-    const retour = grille(donnees, 'ligne10', 'terminus', profilMardi).arrets
-      .find((arret) => arret.nom === 'Marie-Victorin / Rivard');
-    assert.ok(aller && retour);
-    assert.notEqual(aller.id, retour.id);
-  });
+  it(
+    'donne le même nom aux deux côtés d’une intersection, mais pas le même ' + 'identifiant',
+    () => {
+      const aller = grille(donnees, 'ligne10', 'cegep', profilMardi).arrets.find(
+        (arret) => arret.nom === 'Marie-Victorin / Rivard',
+      );
+      const retour = grille(donnees, 'ligne10', 'terminus', profilMardi).arrets.find(
+        (arret) => arret.nom === 'Marie-Victorin / Rivard',
+      );
+      assert.ok(aller && retour);
+      assert.notEqual(aller.id, retour.id);
+    },
+  );
 
   it('mène du Terminus au Cégep sans reculer', () => {
     const parcours = arretsDeDirection(donnees, 'ligne10', 'cegep', profilMardi);
@@ -643,9 +700,7 @@ describe('parcours complet des lignes', () => {
   it('rattache à une zone de taxibus les arrêts nouvellement exposés', () => {
     assert.equal(donnees.zones_des_arrets['Marie-Victorin / Rivard'], '1');
     assert.equal(donnees.zones_des_arrets['Charlotte / Phipps'], '1');
-    assert.equal(
-      donnees.zones_des_arrets['Mairie St-Roch-de-Richelieu - 1111 rue du Parc'],
-      '2-A');
+    assert.equal(donnees.zones_des_arrets['Mairie St-Roch-de-Richelieu - 1111 rue du Parc'], '2-A');
     assert.equal(donnees.zones_des_arrets['Terminus Longueuil (porte A7)'], null);
   });
 });
@@ -675,8 +730,10 @@ describe('prolongement du retour par la ligne 10', () => {
   it('n’en trouve aucune pour les deux arrivées de la nuit', () => {
     const retours = retoursAvecTaxibus(donnees, options);
     const sans = retours.filter((retour) => !retour.ligne10);
-    assert.deepEqual(sans.map((retour) => retour.arrivee.heure),
-      ['00:58', '01:48']);
+    assert.deepEqual(
+      sans.map((retour) => retour.arrivee.heure),
+      ['00:58', '01:48'],
+    );
     // Ce sont précisément celles dont le taxibus devait être réservé avant la
     // fermeture du terminus : aucune option de repli le soir même.
     for (const retour of sans) {
@@ -686,44 +743,51 @@ describe('prolongement du retour par la ligne 10', () => {
   });
 
   it('laisse le temps de descendre avant de compter le départ', () => {
-    const retours = retoursAvecTaxibus(donnees, { ...options,
-                                                  correspondance: 5 });
+    const retours = retoursAvecTaxibus(donnees, { ...options, correspondance: 5 });
     for (const retour of retours.filter((r) => r.ligne10)) {
-      assert.ok(retour.ligne10.attente >= 5,
-        `${retour.arrivee.heure} : ${retour.ligne10.attente} min`);
+      assert.ok(
+        retour.ligne10.attente >= 5,
+        `${retour.arrivee.heure} : ${retour.ligne10.attente} min`,
+      );
       assert.ok(retour.ligne10.attente <= ATTENTE_MAX);
     }
   });
 
-  it('refuse de présenter le premier autobus du lendemain comme une '
-     + 'correspondance', () => {
+  it('refuse de présenter le premier autobus du lendemain comme une ' + 'correspondance', () => {
     const passages = passagesLigne10(donnees, TERMINUS, MARDI);
     // Une arrivée à 01:30, alors que la ligne 10 ne reprend qu'à 04:45.
     const tardive = instant(MARDI, enMinutes('01:30'));
     assert.equal(correspondanceLigne10(passages, tardive), null);
     // La même règle, énoncée sur une liste minimale.
-    const loin = [{ passage: { instant: tardive + ATTENTE_MAX + 1,
-                               heure: '03:01' } }];
+    const loin = [{ passage: { instant: tardive + ATTENTE_MAX + 1, heure: '03:01' } }];
     assert.equal(correspondanceLigne10(loin, tardive), null);
-    const juste = [{ passage: { instant: tardive + ATTENTE_MAX,
-                                heure: '03:00' } }];
+    const juste = [{ passage: { instant: tardive + ATTENTE_MAX, heure: '03:00' } }];
     assert.ok(correspondanceLigne10(juste, tardive));
   });
 
   it('signale une correspondance trop serrée pour être tenue', () => {
     const base = instant(MARDI, enMinutes('12:00'));
     const serree = correspondanceLigne10(
-      [{ passage: { instant: base + 8, heure: '12:08' } }], base, 5);
+      [{ passage: { instant: base + 8, heure: '12:08' } }],
+      base,
+      5,
+    );
     assert.equal(serree.jeu, 3);
     assert.equal(serree.serree, true);
     const large = correspondanceLigne10(
-      [{ passage: { instant: base + 20, heure: '12:20' } }], base, 5);
+      [{ passage: { instant: base + 20, heure: '12:20' } }],
+      base,
+      5,
+    );
     assert.equal(large.serree, false);
   });
 
   it('ne propose rien à un arrêt que la ligne 10 ne dessert pas', () => {
-    const passages = passagesLigne10(donnees,
-      'Mairie St-Roch-de-Richelieu - 1111 rue du Parc', MARDI);
+    const passages = passagesLigne10(
+      donnees,
+      'Mairie St-Roch-de-Richelieu - 1111 rue du Parc',
+      MARDI,
+    );
     assert.deepEqual(passages, []);
     assert.equal(correspondanceLigne10(passages, instant(MARDI, 600)), null);
   });

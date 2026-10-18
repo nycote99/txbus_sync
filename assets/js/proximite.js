@@ -17,8 +17,7 @@ export function distanceMetres(a, b) {
   const phi2 = (b.lat * Math.PI) / 180;
   const dPhi = phi2 - phi1;
   const dLambda = ((b.lon - a.lon) * Math.PI) / 180;
-  const h = Math.sin(dPhi / 2) ** 2
-    + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) ** 2;
+  const h = Math.sin(dPhi / 2) ** 2 + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) ** 2;
   return 2 * RAYON_TERRE * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
@@ -97,13 +96,15 @@ export function arretsProches(donnees, reference, position, options = {}) {
 
   const retenus = [];
   candidats.forEach((arret) => {
-    const meme = retenus.find((garde) => garde.nom === arret.nom
-      || distanceMetres(garde, arret) <= MEME_ENDROIT);
+    const meme = retenus.find(
+      (garde) => garde.nom === arret.nom || distanceMetres(garde, arret) <= MEME_ENDROIT,
+    );
     if (meme) {
       meme.lignes = [...new Set([...meme.lignes, ...arret.lignes])];
       meme.directions = [...new Set([...meme.directions, ...arret.directions])];
-      meme.autresNoms = [...new Set([...(meme.autresNoms || []),
-        ...(arret.nom === meme.nom ? [] : [arret.nom])])];
+      meme.autresNoms = [
+        ...new Set([...(meme.autresNoms || []), ...(arret.nom === meme.nom ? [] : [arret.nom])]),
+      ];
       return;
     }
     retenus.push({ ...arret, autresNoms: [] });
@@ -121,23 +122,23 @@ export function arretsProches(donnees, reference, position, options = {}) {
  */
 export function localiser(options = {}) {
   const { delai = 10000, geolocalisation } = options;
-  const service = geolocalisation
-    || (typeof navigator !== 'undefined' ? navigator.geolocation : null);
+  const service =
+    geolocalisation || (typeof navigator !== 'undefined' ? navigator.geolocation : null);
 
   if (!service) {
-    return Promise.resolve({ erreur:
-      'Ce navigateur ne sait pas donner votre position.' });
+    return Promise.resolve({ erreur: 'Ce navigateur ne sait pas donner votre position.' });
   }
 
   return new Promise((resoudre) => {
     service.getCurrentPosition(
-      (mesure) => resoudre({
-        position: {
-          lat: mesure.coords.latitude,
-          lon: mesure.coords.longitude,
-          precision: mesure.coords.accuracy,
-        },
-      }),
+      (mesure) =>
+        resoudre({
+          position: {
+            lat: mesure.coords.latitude,
+            lon: mesure.coords.longitude,
+            precision: mesure.coords.accuracy,
+          },
+        }),
       (echec) => resoudre({ erreur: motifDeRefus(echec) }),
       { enableHighAccuracy: true, timeout: delai, maximumAge: 60000 },
     );
@@ -148,8 +149,10 @@ export function localiser(options = {}) {
 export function motifDeRefus(echec) {
   const code = echec && echec.code;
   if (code === 1) {
-    return 'Position refusée. Vous pouvez l’autoriser dans les réglages du '
-      + 'navigateur, ou choisir votre arrêt dans la liste.';
+    return (
+      'Position refusée. Vous pouvez l’autoriser dans les réglages du ' +
+      'navigateur, ou choisir votre arrêt dans la liste.'
+    );
   }
   if (code === 2) return 'Position indisponible pour l’instant.';
   if (code === 3) return 'La localisation a pris trop de temps.';

@@ -9,8 +9,15 @@ import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
 import {
-  champ, entier, entierSigne, flottant, lireMessage, sousMessage, sousMessages,
-  texte, toutesLesValeurs,
+  champ,
+  entier,
+  entierSigne,
+  flottant,
+  lireMessage,
+  sousMessage,
+  sousMessages,
+  texte,
+  toutesLesValeurs,
 } from '../assets/js/protobuf.js';
 
 /** Encode un entier en varint, pour bâtir des messages d'essai. */
@@ -33,8 +40,7 @@ function champOctets(numero, contenu) {
   return [...etiquette(numero, 2), ...varint(contenu.length), ...contenu];
 }
 
-const champTexte = (numero, valeur) =>
-  champOctets(numero, [...new TextEncoder().encode(valeur)]);
+const champTexte = (numero, valeur) => champOctets(numero, [...new TextEncoder().encode(valeur)]);
 
 function champFixe32(numero, valeur) {
   const tampon = new DataView(new ArrayBuffer(4));
@@ -53,8 +59,7 @@ describe('lecture du format de fil', () => {
   });
 
   it('lit une chaîne en UTF-8, accents compris', () => {
-    assert.equal(texte(message(champTexte(7, 'Hôtel-Dieu (hôpital)')), 7),
-      'Hôtel-Dieu (hôpital)');
+    assert.equal(texte(message(champTexte(7, 'Hôtel-Dieu (hôpital)')), 7), 'Hôtel-Dieu (hôpital)');
   });
 
   it('lit un flottant sur quatre octets', () => {
@@ -74,9 +79,13 @@ describe('lecture du format de fil', () => {
     const flux = message(
       champOctets(2, champTexte(1, 'a')),
       champOctets(2, champTexte(1, 'b')),
-      champOctets(2, champTexte(1, 'c')));
+      champOctets(2, champTexte(1, 'c')),
+    );
     assert.equal(sousMessages(flux, 2).length, 3);
-    assert.deepEqual(sousMessages(flux, 2).map((m) => texte(m, 1)), ['a', 'b', 'c']);
+    assert.deepEqual(
+      sousMessages(flux, 2).map((m) => texte(m, 1)),
+      ['a', 'b', 'c'],
+    );
     assert.equal(toutesLesValeurs(flux, 2).length, 3);
   });
 
@@ -87,7 +96,8 @@ describe('lecture du format de fil', () => {
       champVarint(99, 123456),
       champTexte(98, 'champ que nous ne lisons pas'),
       champFixe32(97, 1.5),
-      champTexte(2, 'toujours lisible'));
+      champTexte(2, 'toujours lisible'),
+    );
     assert.equal(entier(flux, 1), 42);
     assert.equal(texte(flux, 2), 'toujours lisible');
   });

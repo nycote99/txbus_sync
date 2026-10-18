@@ -49,12 +49,11 @@ export class TransitFeedService extends EventTarget {
   constructor(reference, options = {}) {
     super();
     this.reference = reference;
-    this.delaiRafraichissement = options.delaiRafraichissement
-      ?? DELAI_RAFRAICHISSEMENT;
+    this.delaiRafraichissement = options.delaiRafraichissement ?? DELAI_RAFRAICHISSEMENT;
     this.timeoutMs = options.timeoutMs ?? 10000;
     this.charger = options.charger ?? chargerTempsReel;
-    this.enLigne = options.enLigne ?? (() => typeof navigator === 'undefined'
-      || navigator.onLine !== false);
+    this.enLigne =
+      options.enLigne ?? (() => typeof navigator === 'undefined' || navigator.onLine !== false);
     this.visible = options.visible ?? (() => true);
     /** @type {object|null} Dernier état valide du flux. */
     this.etat = null;
@@ -68,8 +67,7 @@ export class TransitFeedService extends EventTarget {
   demarrer() {
     if (this.minuteur !== null) return;
     this.rafraichir();
-    this.minuteur = setInterval(() => this.rafraichir(),
-      this.delaiRafraichissement);
+    this.minuteur = setInterval(() => this.rafraichir(), this.delaiRafraichissement);
   }
 
   /** Arrête le suivi et abandonne l'interrogation en cours, s'il y en a. */
@@ -99,7 +97,7 @@ export class TransitFeedService extends EventTarget {
       controleur.abort();
     }, this.timeoutMs);
 
-    let recu = null;
+    let recu;
     try {
       recu = await this.charger(this.reference, controleur.signal);
     } catch {
@@ -113,11 +111,9 @@ export class TransitFeedService extends EventTarget {
       this.etat = recu;
       this.basculer('DIRECT', null);
     } else if (delaiDepasse) {
-      this.basculer(this.etat ? 'DEGRADE_HORAIRE' : 'HORS_LIGNE',
-        'delai-depasse');
+      this.basculer(this.etat ? 'DEGRADE_HORAIRE' : 'HORS_LIGNE', 'delai-depasse');
     } else {
-      this.basculer(this.etat ? 'DEGRADE_HORAIRE' : 'HORS_LIGNE',
-        'flux-injoignable');
+      this.basculer(this.etat ? 'DEGRADE_HORAIRE' : 'HORS_LIGNE', 'flux-injoignable');
     }
     return this.mode;
   }
@@ -132,12 +128,16 @@ export class TransitFeedService extends EventTarget {
     const precedent = this.mode;
     this.mode = mode;
     if (precedent !== mode) {
-      this.dispatchEvent(new CustomEvent('modechange', {
-        detail: { mode, precedent },
-      }));
+      this.dispatchEvent(
+        new CustomEvent('modechange', {
+          detail: { mode, precedent },
+        }),
+      );
     }
-    this.dispatchEvent(new CustomEvent('update', {
-      detail: { mode, etat: this.etat, raison },
-    }));
+    this.dispatchEvent(
+      new CustomEvent('update', {
+        detail: { mode, etat: this.etat, raison },
+      }),
+    );
   }
 }

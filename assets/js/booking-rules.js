@@ -15,9 +15,7 @@
  * La plus contraignante des deux l'emporte.
  */
 
-import {
-  decalerDate, instant, instantDeDepart, profilDuJour,
-} from './calendrier.js';
+import { decalerDate, instant, instantDeDepart, profilDuJour } from './calendrier.js';
 
 /**
  * @typedef {object} LimiteReservation
@@ -28,9 +26,18 @@ import {
  */
 
 /**
+ * Les horaires embarqués, vus par ce module : seule la règle du délai est
+ * lue ici, le reste passe par `profilDuJour` de calendrier.js.
+ *
+ * @typedef {object} DonneesHoraires
+ * @property {{ reservation_minutes_avant: number }} regles
+ */
+
+/**
  * Heure limite pour réserver un départ de taxibus.
  *
- * @param {object} donnees Les horaires embarqués (`data/horaires.json`).
+ * @param {DonneesHoraires} donnees Les horaires embarqués
+ *   (`data/horaires.json`).
  * @param {{annee: number, mois: number, jour: number}} jourDeService
  * @param {string} heure Heure de départ, format « HH:MM ».
  * @returns {LimiteReservation}
@@ -39,12 +46,14 @@ export function limiteReservation(donnees, jourDeService, heure) {
   const instantDepart = instantDeDepart(jourDeService, heure);
   const delai = donnees.regles.reservation_minutes_avant;
   let limite = instantDepart - delai;
+  /** @type {'delai'|'fermeture_terminus'} */
   let motif = 'delai';
 
   const profil = profilDuJour(jourDeService, donnees);
-  const ouvertPendantLeDepart = profil.terminusOuvert
-    && instantDepart >= instant(jourDeService, profil.ouverture)
-    && instantDepart <= instant(jourDeService, profil.fermeture);
+  const ouvertPendantLeDepart =
+    profil.terminusOuvert &&
+    instantDepart >= instant(jourDeService, profil.ouverture) &&
+    instantDepart <= instant(jourDeService, profil.fermeture);
 
   if (!ouvertPendantLeDepart) {
     const fermeture = derniereFermeture(donnees, jourDeService, instantDepart);
@@ -78,8 +87,10 @@ function derniereFermeture(donnees, jourDeService, instantVise) {
 
 /**
  * État d'un départ taxibus par rapport à son heure limite de réservation.
+ * Ne lit que la limite elle-même : un `LimiteReservation` complet convient,
+ * un simple porteur de limite aussi.
  *
- * @param {LimiteReservation} limite
+ * @param {{ limite: number }} limite
  * @param {number} instantCourant Même unité que `limite.limite`.
  * @param {number} [seuilAlerte] Minutes sous lesquelles l'état devient
  *   « dernière chance ».
@@ -125,8 +136,7 @@ export function evaluateBookingStatus({
 }) {
   const leadLimit = departureTime.getTime() - leadTimeMinutes * 60000;
   let effectiveCutoff = leadLimit;
-  if (terminusClosingTime
-      && departureTime.getTime() > terminusClosingTime.getTime()) {
+  if (terminusClosingTime && departureTime.getTime() > terminusClosingTime.getTime()) {
     effectiveCutoff = Math.min(leadLimit, terminusClosingTime.getTime());
   }
   const remainingMs = effectiveCutoff - currentTime.getTime();

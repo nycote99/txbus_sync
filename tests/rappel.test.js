@@ -8,7 +8,7 @@ import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
 import { construireRappel, rappelDuRetour } from '../assets/js/rappel.js';
-import { enMinutes, instant, profilDuJour } from '../assets/js/calendrier.js';
+import { enMinutes, instant } from '../assets/js/calendrier.js';
 import { retoursAvecTaxibus } from '../assets/js/reseau.js';
 
 import { MARDI, lireHoraires } from './aide.js';
@@ -24,13 +24,14 @@ function lignesLogiques(ics) {
   }, []);
 }
 
-const rappelSimple = () => construireRappel({
-  limiteInstant: instant(MARDI, enMinutes('20:30')),
-  titre: 'Réserver le taxibus de 22:15',
-  description: 'Heure limite : 20:30.',
-  url: 'https://stc.accestaxi.com/',
-  identifiant: 'essai@sorel-transit',
-});
+const rappelSimple = () =>
+  construireRappel({
+    limiteInstant: instant(MARDI, enMinutes('20:30')),
+    titre: 'Réserver le taxibus de 22:15',
+    description: 'Heure limite : 20:30.',
+    url: 'https://stc.accestaxi.com/',
+    identifiant: 'essai@sorel-transit',
+  });
 
 describe('structure du fichier calendrier', () => {
   it('ouvre et referme chaque bloc', () => {
@@ -53,7 +54,10 @@ describe('structure du fichier calendrier', () => {
   it('porte les champs obligatoires', () => {
     const lignes = lignesLogiques(rappelSimple());
     for (const cle of ['VERSION:2.0', 'PRODID:', 'UID:', 'DTSTAMP:', 'DTSTART:']) {
-      assert.ok(lignes.some((l) => l.startsWith(cle)), `${cle} manquant`);
+      assert.ok(
+        lignes.some((l) => l.startsWith(cle)),
+        `${cle} manquant`,
+      );
     }
   });
 
@@ -75,7 +79,9 @@ describe('heure du rappel', () => {
   it('suit le changement d’heure', () => {
     const hiver = construireRappel({
       limiteInstant: instant({ annee: 2026, mois: 12, jour: 15 }, enMinutes('16:45')),
-      titre: 'x', description: 'y', identifiant: 'z@essai',
+      titre: 'x',
+      description: 'y',
+      identifiant: 'z@essai',
     });
     const debut = lignesLogiques(hiver).find((l) => l.startsWith('DTSTART:'));
     assert.equal(debut, 'DTSTART:20261215T214500Z');
@@ -84,7 +90,9 @@ describe('heure du rappel', () => {
   it('gère une limite qui tombe après minuit', () => {
     const apresMinuit = construireRappel({
       limiteInstant: instant({ annee: 2026, mois: 9, jour: 2 }, enMinutes('00:45')),
-      titre: 'x', description: 'y', identifiant: 'z@essai',
+      titre: 'x',
+      description: 'y',
+      identifiant: 'z@essai',
     });
     const debut = lignesLogiques(apresMinuit).find((l) => l.startsWith('DTSTART:'));
     assert.equal(debut, 'DTSTART:20260902T044500Z');
@@ -93,15 +101,20 @@ describe('heure du rappel', () => {
 
 describe('échappement et repliement', () => {
   it('replie les lignes trop longues et les rend relisibles', () => {
-    const long = 'Réserver le taxibus vers Saint-Gérard-Majella depuis le '
-      + 'Terminus des Promenades - STC, avant la fermeture du comptoir';
+    const long =
+      'Réserver le taxibus vers Saint-Gérard-Majella depuis le ' +
+      'Terminus des Promenades - STC, avant la fermeture du comptoir';
     const ics = construireRappel({
       limiteInstant: instant(MARDI, enMinutes('20:30')),
-      titre: long, description: 'court', identifiant: 'x@essai',
+      titre: long,
+      description: 'court',
+      identifiant: 'x@essai',
     });
     for (const ligne of ics.split('\r\n')) {
-      assert.ok(new TextEncoder().encode(ligne).length <= 75,
-        `ligne trop longue : ${ligne.length} caractères`);
+      assert.ok(
+        new TextEncoder().encode(ligne).length <= 75,
+        `ligne trop longue : ${ligne.length} caractères`,
+      );
     }
     // Le format échappe la virgule : c'est cette forme qu'on doit retrouver.
     assert.ok(lignesLogiques(ics).includes(`SUMMARY:${long.replace(',', '\\,')}`));
@@ -115,14 +128,16 @@ describe('échappement et repliement', () => {
       identifiant: 'x@essai',
     });
     const lignes = lignesLogiques(ics);
-    assert.ok(lignes.includes('SUMMARY:a\\,b\;c'));
+    assert.ok(lignes.includes('SUMMARY:a\\,b\\;c'));
     assert.ok(lignes.some((l) => l === 'DESCRIPTION:ligne un\\nligne deux'));
   });
 
   it('ne coupe pas un caractère accentué en deux', () => {
     const ics = construireRappel({
       limiteInstant: instant(MARDI, enMinutes('20:30')),
-      titre: 'é'.repeat(80), description: 'x', identifiant: 'y@essai',
+      titre: 'é'.repeat(80),
+      description: 'x',
+      identifiant: 'y@essai',
     });
     assert.ok(lignesLogiques(ics).includes(`SUMMARY:${'é'.repeat(80)}`));
   });
@@ -158,8 +173,10 @@ describe('rappel bâti depuis un retour', () => {
   });
 
   it('produit un identifiant stable pour le même départ', () => {
-    assert.equal(rappelDuRetour(retourTardif, donnees).identifiant,
-      rappelDuRetour(retourTardif, donnees).identifiant);
+    assert.equal(
+      rappelDuRetour(retourTardif, donnees).identifiant,
+      rappelDuRetour(retourTardif, donnees).identifiant,
+    );
   });
 
   it('se laisse transformer en fichier valide', () => {

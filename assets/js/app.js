@@ -8,8 +8,13 @@
 
 import { h, vider } from './dom.js';
 import {
-  dateLongue, depuisISO, enHeure, enISO, jourDeServiceActuel, maintenant,
-  numeroDeJour, profilDuJour,
+  dateLongue,
+  depuisISO,
+  enHeure,
+  jourDeServiceActuel,
+  maintenant,
+  numeroDeJour,
+  profilDuJour,
 } from './calendrier.js';
 import { TransitFeedService } from './gtfs-client.js';
 import { preferences, definir } from './preferences.js';
@@ -52,11 +57,21 @@ async function demarrer() {
     ]);
     donnees = horaires;
     reference = reseau;
-  } catch (erreur) {
-    vider(conteneur).append(h('div.bandeau.bandeau--arret',
-      h('div', h('strong', 'Horaires indisponibles'),
-        h('span', 'Impossible de charger les données. Vérifiez votre connexion '
-          + 'puis rechargez la page.'))));
+  } catch {
+    vider(conteneur).append(
+      h(
+        'div.bandeau.bandeau--arret',
+        h(
+          'div',
+          h('strong', 'Horaires indisponibles'),
+          h(
+            'span',
+            'Impossible de charger les données. Vérifiez votre connexion ' +
+              'puis rechargez la page.',
+          ),
+        ),
+      ),
+    );
     return;
   }
 
@@ -133,19 +148,22 @@ function annoncer(etat, avant) {
 
   if (!etat) {
     region.textContent = avant
-      ? 'Suivi en direct interrompu : les heures affichées redeviennent '
-        + 'estimées d’après l’horaire.' : '';
+      ? 'Suivi en direct interrompu : les heures affichées redeviennent ' +
+        'estimées d’après l’horaire.'
+      : '';
     return;
   }
-  const nouveaux = etat.alertes.filter((alerte) => !(avant && avant.alertes
-    .some((connue) => connue.titre === alerte.titre)));
+  const nouveaux = etat.alertes.filter(
+    (alerte) => !(avant && avant.alertes.some((connue) => connue.titre === alerte.titre)),
+  );
   if (nouveaux.length) {
     region.textContent = `Avis de la STC : ${nouveaux[0].titre}`;
     return;
   }
   if (!avant) {
-    region.textContent = `Suivi en direct actif : ${etat.vehicules.length} `
-      + `véhicule${etat.vehicules.length > 1 ? 's' : ''} en circulation.`;
+    region.textContent =
+      `Suivi en direct actif : ${etat.vehicules.length} ` +
+      `véhicule${etat.vehicules.length > 1 ? 's' : ''} en circulation.`;
     return;
   }
   region.textContent = '';
@@ -179,8 +197,8 @@ function contexte() {
       if (modifications) etatVue = { ...etatVue, ...modifications };
       dessiner();
     },
-    partager: () => `${window.location.origin}${window.location.pathname}`
-      + `${window.location.hash}`,
+    partager: () =>
+      `${window.location.origin}${window.location.pathname}` + `${window.location.hash}`,
   };
 }
 
@@ -194,21 +212,22 @@ function dessiner() {
   // secondes, et a chaque arrivee du flux temps reel. Sans ce report, le focus
   // retombe sur le document : au clavier ou au lecteur d'ecran, on se retrouve
   // renvoye en haut de page toutes les trente secondes.
-  const focusAvant = conteneur.contains(document.activeElement)
-    ? document.activeElement.dataset.focus : null;
+  const actif = /** @type {HTMLElement|null} */ (document.activeElement);
+  const focusAvant = actif && conteneur.contains(actif) ? actif.dataset.focus : null;
 
   const positionDefilement = window.scrollY;
   vider(conteneur).append(VUES[vueActive].rendre(ctx));
   window.scrollTo({ top: positionDefilement });
 
   if (focusAvant) {
-    const cible = conteneur
-      .querySelector(`[data-focus="${CSS.escape(focusAvant)}"]`);
+    const cible = /** @type {HTMLElement|null} */ (
+      conteneur.querySelector(`[data-focus="${CSS.escape(focusAvant)}"]`)
+    );
     if (cible) cible.focus({ preventScroll: true });
   }
   ecrireAncre(vueActive, etatVue);
 
-  document.querySelectorAll('.nav__lien').forEach((bouton) => {
+  document.querySelectorAll('.nav__lien').forEach((/** @type {HTMLElement} */ bouton) => {
     const actif = bouton.dataset.vue === vueActive;
     if (actif) bouton.setAttribute('aria-current', 'page');
     else bouton.removeAttribute('aria-current');
@@ -230,8 +249,16 @@ function aller(vue, modifications) {
  * L'adresse porte la vue et l'etat qui la definit, pour qu'un ecran soit
  * citable : « mon retour de jeudi » s'envoie par message.
  */
-const CLES_PARTAGEABLES = ['jour', 'embarquement', 'descente', 'zoneDestination',
-                           'ligne', 'arret', 'direction', 'voyage'];
+const CLES_PARTAGEABLES = [
+  'jour',
+  'embarquement',
+  'descente',
+  'zoneDestination',
+  'ligne',
+  'arret',
+  'direction',
+  'voyage',
+];
 
 function lireAncre() {
   const brut = window.location.hash.replace(/^#/, '');
@@ -264,7 +291,7 @@ function ecrireAncre(vue, etat) {
 }
 
 function brancherNavigation() {
-  document.querySelectorAll('.nav__lien').forEach((bouton) => {
+  document.querySelectorAll('.nav__lien').forEach((/** @type {HTMLElement} */ bouton) => {
     bouton.addEventListener('click', () => aller(bouton.dataset.vue));
   });
 }
@@ -274,11 +301,11 @@ function majHorloge(horloge = maintenant()) {
 }
 
 function majEtatDuJour({ jourDeService, profil, estAujourdHui }) {
-  const service = profil.service === 'semaine' ? 'horaire de semaine'
-    : 'horaire de fin de semaine';
-  elementEtatDuJour.textContent = `${dateLongue(jourDeService)}`
-    + `${estAujourdHui ? '' : ' (autre jour)'} · `
-    + `${profil.ferie ? profil.ferie.nom : service}`;
+  const service = profil.service === 'semaine' ? 'horaire de semaine' : 'horaire de fin de semaine';
+  elementEtatDuJour.textContent =
+    `${dateLongue(jourDeService)}` +
+    `${estAujourdHui ? '' : ' (autre jour)'} · ` +
+    `${profil.ferie ? profil.ferie.nom : service}`;
 }
 
 // --- Theme -------------------------------------------------------------------
@@ -298,8 +325,7 @@ function appliquerTheme(theme) {
   if (theme === 'auto') racine.removeAttribute('data-theme');
   else racine.dataset.theme = theme;
   const bouton = document.getElementById('bascule-theme');
-  const libelles = { auto: 'Thème automatique', clair: 'Thème clair',
-                     sombre: 'Thème sombre' };
+  const libelles = { auto: 'Thème automatique', clair: 'Thème clair', sombre: 'Thème sombre' };
   bouton.textContent = { auto: '◐', clair: '☀', sombre: '☾' }[theme] || '◐';
   bouton.setAttribute('aria-label', libelles[theme]);
   bouton.title = libelles[theme];
@@ -318,24 +344,27 @@ function enregistrerServiceWorker() {
     window.location.reload();
   });
 
-  navigator.serviceWorker.register('service-worker.js').then((inscription) => {
-    if (inscription.waiting && navigator.serviceWorker.controller) {
-      annoncerVersion(inscription.waiting);
-    }
-    inscription.addEventListener('updatefound', () => {
-      const arrivant = inscription.installing;
-      if (!arrivant) return;
-      arrivant.addEventListener('statechange', () => {
-        // `controller` distingue la mise a jour de la toute premiere
-        // installation, qui n'a rien a annoncer.
-        if (arrivant.state === 'installed' && navigator.serviceWorker.controller) {
-          annoncerVersion(arrivant);
-        }
+  navigator.serviceWorker
+    .register('service-worker.js')
+    .then((inscription) => {
+      if (inscription.waiting && navigator.serviceWorker.controller) {
+        annoncerVersion(inscription.waiting);
+      }
+      inscription.addEventListener('updatefound', () => {
+        const arrivant = inscription.installing;
+        if (!arrivant) return;
+        arrivant.addEventListener('statechange', () => {
+          // `controller` distingue la mise a jour de la toute premiere
+          // installation, qui n'a rien a annoncer.
+          if (arrivant.state === 'installed' && navigator.serviceWorker.controller) {
+            annoncerVersion(arrivant);
+          }
+        });
       });
+    })
+    .catch(() => {
+      /* le hors-ligne est un bonus : son echec ne doit pas gener l'application */
     });
-  }).catch(() => {
-    /* le hors-ligne est un bonus : son echec ne doit pas gener l'application */
-  });
 }
 
 /**
@@ -347,21 +376,35 @@ function enregistrerServiceWorker() {
  */
 function annoncerVersion(travailleur) {
   if (document.getElementById('bandeau-version')) return;
-  const bandeau = h('div.bandeau.bandeau--info.bandeau--flottant',
+  const bandeau = h(
+    'div.bandeau.bandeau--info.bandeau--flottant',
     { id: 'bandeau-version', role: 'status', 'aria-live': 'polite' },
-    h('div',
+    h(
+      'div',
       h('strong', 'Nouvelle version disponible'),
-      h('span', 'Les horaires embarqués ont peut-être changé.')),
-    h('div.bandeau__actions',
-      h('button.bouton.bouton--principal', {
-        type: 'button',
-        onclick: () => travailleur.postMessage({ type: 'ACTIVER' }),
-      }, 'Actualiser'),
-      h('button.bouton-icone', {
-        type: 'button',
-        'aria-label': 'Plus tard',
-        onclick: () => bandeau.remove(),
-      }, '✕')));
+      h('span', 'Les horaires embarqués ont peut-être changé.'),
+    ),
+    h(
+      'div.bandeau__actions',
+      h(
+        'button.bouton.bouton--principal',
+        {
+          type: 'button',
+          onclick: () => travailleur.postMessage({ type: 'ACTIVER' }),
+        },
+        'Actualiser',
+      ),
+      h(
+        'button.bouton-icone',
+        {
+          type: 'button',
+          'aria-label': 'Plus tard',
+          onclick: () => bandeau.remove(),
+        },
+        '✕',
+      ),
+    ),
+  );
   document.body.append(bandeau);
 }
 

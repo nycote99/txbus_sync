@@ -15,17 +15,34 @@
 export const FUSEAU = 'America/Toronto';
 export const DEBUT_JOUR_SERVICE = 3 * 60; // 03:00
 
-const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi',
-               'samedi'];
-const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
-              'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const MOIS = [
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+];
 
 /** Date civile {annee, mois, jour} et heure {minutes} a Sorel-Tracy. */
 export function maintenant(horlogeFactice) {
   if (horlogeFactice) return horlogeFactice;
   const parties = new Intl.DateTimeFormat('en-CA', {
-    timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    timeZone: FUSEAU,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
   }).formatToParts(new Date());
   const p = Object.fromEntries(parties.map((x) => [x.type, x.value]));
   return {
@@ -41,8 +58,14 @@ export function maintenant(horlogeFactice) {
  */
 export function depuisEpoch(secondes) {
   const parties = new Intl.DateTimeFormat('en-CA', {
-    timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    timeZone: FUSEAU,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
   }).formatToParts(new Date(secondes * 1000));
   const p = Object.fromEntries(parties.map((x) => [x.type, x.value]));
   return {
@@ -62,8 +85,15 @@ export function numeroDeJour({ annee, mois, jour }) {
   const a = Math.floor((14 - mois) / 12);
   const y = annee + 4800 - a;
   const m = mois + 12 * a - 3;
-  return jour + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4)
-    - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+  return (
+    jour +
+    Math.floor((153 * m + 2) / 5) +
+    365 * y +
+    Math.floor(y / 4) -
+    Math.floor(y / 100) +
+    Math.floor(y / 400) -
+    32045
+  );
 }
 
 export function dateDepuisNumero(numero) {
@@ -101,8 +131,7 @@ export function enMinutes(texte) {
 
 export function enHeure(minutes) {
   const m = ((Math.round(minutes) % 1440) + 1440) % 1440;
-  return String(Math.floor(m / 60)).padStart(2, '0') + ':'
-    + String(m % 60).padStart(2, '0');
+  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
 }
 
 /**
@@ -208,8 +237,9 @@ export function profilDuJour(date, donnees) {
 
 /** 'AAAA-MM-JJ', la forme qu'attend un champ de date et qu'on met dans l'adresse. */
 export function enISO(date) {
-  return `${date.annee}-${String(date.mois).padStart(2, '0')}`
-    + `-${String(date.jour).padStart(2, '0')}`;
+  return (
+    `${date.annee}-${String(date.mois).padStart(2, '0')}` + `-${String(date.jour).padStart(2, '0')}`
+  );
 }
 
 /** Lit une date ISO ; renvoie null si elle est absente ou mal formée. */
@@ -230,8 +260,8 @@ export function depuisISO(texte) {
  * instant-la, changement d'heure compris.
  */
 export function versEpoch(date, minutes) {
-  const suppose = Date.UTC(date.annee, date.mois - 1, date.jour, 0, 0)
-    + Math.round(minutes) * 60000;
+  const suppose =
+    Date.UTC(date.annee, date.mois - 1, date.jour, 0, 0) + Math.round(minutes) * 60000;
   // Deux passes suffisent : la premiere trouve l'ecart, la seconde le confirme
   // meme si l'on tombe dans l'heure du changement.
   let resultat = suppose;
@@ -241,11 +271,22 @@ export function versEpoch(date, minutes) {
   return resultat;
 }
 
-/** Champs d'une date lue dans le fuseau de Sorel-Tracy, prets pour Date.UTC. */
+/**
+ * Champs d'une date lue dans le fuseau de Sorel-Tracy, prets pour Date.UTC.
+ *
+ * @returns {[number, number, number, number, number, number]} Année, mois
+ *   (0-11), jour, heure, minute, seconde : l'ordre exact de `Date.UTC`.
+ */
 function champsUtcLocaux(millisecondes) {
   const parties = new Intl.DateTimeFormat('en-CA', {
-    timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    timeZone: FUSEAU,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
   }).formatToParts(new Date(millisecondes));
   const p = Object.fromEntries(parties.map((x) => [x.type, x.value]));
   return [+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second];

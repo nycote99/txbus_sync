@@ -15,8 +15,10 @@ const AVANCE_ALARME = 20;
 
 /** Horodatage UTC au format iCalendar : 20260901T003000Z. */
 function enHorodatageIcs(millisecondes) {
-  return new Date(millisecondes).toISOString()
-    .replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  return new Date(millisecondes)
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
 }
 
 /**
@@ -46,7 +48,7 @@ function plier(ligne) {
 function echapper(texte) {
   return String(texte)
     .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\;')
+    .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
     .replace(/\n/g, '\\n');
 }
@@ -55,9 +57,26 @@ function echapper(texte) {
  * Construit l'évènement de rappel. L'heure limite est une heure murale de
  * Sorel-Tracy ; le fichier la transporte en UTC, ce que tous les calendriers
  * savent relire quel que soit le fuseau de l'appareil.
+ *
+ * @param {object} rappel
+ * @param {number} rappel.limiteInstant L'heure limite, en minutes depuis
+ *   l'époque interne du calendrier.
+ * @param {string} rappel.titre
+ * @param {string} rappel.description
+ * @param {string} [rappel.url] Lien de réservation ; absent, le rappel
+ *   n'en porte pas.
+ * @param {string} rappel.identifiant UID iCalendar de l'évènement.
+ * @param {number} [rappel.avance] Minutes d'avance de l'alarme.
+ * @returns {string} Le fichier `.ics`, prêt à télécharger.
  */
-export function construireRappel({ limiteInstant, titre, description, url,
-                                   identifiant, avance = AVANCE_ALARME }) {
+export function construireRappel({
+  limiteInstant,
+  titre,
+  description,
+  url,
+  identifiant,
+  avance = AVANCE_ALARME,
+}) {
   const jour = dateDepuisNumero(Math.floor(limiteInstant / 1440));
   const minutes = limiteInstant - Math.floor(limiteInstant / 1440) * 1440;
   const debut = versEpoch(jour, minutes);
@@ -91,48 +110,56 @@ export function construireRappel({ limiteInstant, titre, description, url,
 /** Décrit le rappel d'un retour prolongé par un taxibus. */
 export function rappelDuRetour(retour, donnees) {
   const { taxibus, arriveeReelle, departReel, verdict } = retour;
-  const zone = donnees.zones.find((z) => z.code === retour.zoneDestination)
-    || null;
+  const zone = donnees.zones.find((z) => z.code === retour.zoneDestination) || null;
 
-  const quand = {
-    avant_embarquement: `avant de monter dans l’express de ${departReel.heure}`,
-    avant_arrivee: `pendant le trajet, avant votre arrivée de ${arriveeReelle.heure}`,
-    apres_arrivee: `après votre arrivée de ${arriveeReelle.heure}`,
-  }[verdict.code] || '';
+  const quand =
+    {
+      avant_embarquement: `avant de monter dans l’express de ${departReel.heure}`,
+      avant_arrivee: `pendant le trajet, avant votre arrivée de ${arriveeReelle.heure}`,
+      apres_arrivee: `après votre arrivée de ${arriveeReelle.heure}`,
+    }[verdict.code] || '';
 
   return {
     limiteInstant: taxibus.limite,
-    identifiant: `taxibus-${taxibus.heure.replace(':', '')}`
-      + `-${taxibus.limite}@sorel-transit`,
+    identifiant: `taxibus-${taxibus.heure.replace(':', '')}` + `-${taxibus.limite}@sorel-transit`,
     titre: `Réserver le taxibus de ${taxibus.heure}`,
     description: [
-      `Heure limite de réservation : ${enHeure(taxibus.limite)}`
-        + (taxibus.motif === 'fermeture_terminus'
-          ? ' (fermeture du Terminus des Promenades).' : '.'),
+      `Heure limite de réservation : ${enHeure(taxibus.limite)}` +
+        (taxibus.motif === 'fermeture_terminus' ? ' (fermeture du Terminus des Promenades).' : '.'),
       `Express de ${departReel.heure}, arrivée à ${arriveeReelle.heure}.`,
       quand ? `À faire ${quand}.` : '',
       // Le nom de la municipalité parle, « Zone 4-A » ne dit rien dans un
       // calendrier rouvert trois jours plus tard.
       zone ? `Destination : ${zone.municipalites.join(', ')}.` : '',
       `Réservation : ${donnees.liens.reservation}`,
-    ].filter(Boolean).join('\n'),
+    ]
+      .filter(Boolean)
+      .join('\n'),
     url: donnees.liens.reservation,
   };
 }
 
 /** Bouton qui déclenche le téléchargement du rappel. */
 export function boutonRappel(retour, donnees) {
-  return h('button.bouton', {
-    type: 'button',
-    onclick: (evenement) => {
-      const description = rappelDuRetour(retour, donnees);
-      telecharger(construireRappel(description),
-        `rappel-taxibus-${retour.taxibus.heure.replace(':', 'h')}.ics`);
-      const bouton = evenement.currentTarget;
-      bouton.textContent = 'Rappel téléchargé';
-      setTimeout(() => { bouton.textContent = 'Me le rappeler'; }, 4000);
+  return h(
+    'button.bouton',
+    {
+      type: 'button',
+      onclick: (evenement) => {
+        const description = rappelDuRetour(retour, donnees);
+        telecharger(
+          construireRappel(description),
+          `rappel-taxibus-${retour.taxibus.heure.replace(':', 'h')}.ics`,
+        );
+        const bouton = evenement.currentTarget;
+        bouton.textContent = 'Rappel téléchargé';
+        setTimeout(() => {
+          bouton.textContent = 'Me le rappeler';
+        }, 4000);
+      },
     },
-  }, 'Me le rappeler');
+    'Me le rappeler',
+  );
 }
 
 function telecharger(contenu, nomDeFichier) {

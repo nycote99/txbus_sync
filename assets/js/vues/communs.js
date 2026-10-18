@@ -17,12 +17,13 @@ export function pastilleTaxibus(texte = 'Taxibus') {
 
 export function carte(titre, corps, options = {}) {
   const entete = titre
-    ? h('div.carte__entete',
-        h('h2.carte__titre', titre),
-        options.aDroite || null)
+    ? h('div.carte__entete', h('h2.carte__titre', titre), options.aDroite || null)
     : null;
-  return h('section.carte', entete,
-    h(`div.carte__corps${options.plat ? '.carte__corps--plat' : ''}`, corps));
+  return h(
+    'section.carte',
+    entete,
+    h(`div.carte__corps${options.plat ? '.carte__corps--plat' : ''}`, corps),
+  );
 }
 
 export function messageVide(texte) {
@@ -40,23 +41,37 @@ export function elementPassage(entree, instantCourant, auClic, etat) {
   const dansMinutes = reel.instant - instantCourant;
   const annule = voyageAnnule(etat, voyage);
 
-  return h('li',
-    h(`button.passage${annule ? '.passage--annule' : ''}`, {
-      type: 'button', onclick: () => auClic && auClic(entree),
-    },
+  return h(
+    'li',
+    h(
+      `button.passage${annule ? '.passage--annule' : ''}`,
+      {
+        type: 'button',
+        onclick: () => auClic && auClic(entree),
+      },
       h('span.passage__heure', reel.heure),
-      h('span.passage__detail',
-        h('span.passage__titre', direction,
-          annule ? [' ', h('span.pastille.pastille--arret', 'Annulé')] : null),
-        h('span.passage__meta',
+      h(
+        'span.passage__detail',
+        h(
+          'span.passage__titre',
+          direction,
+          annule ? [' ', h('span.pastille.pastille--arret', 'Annulé')] : null,
+        ),
+        h(
+          'span.passage__meta',
           pastilleLigne(voyage.ligne, voyage.circuit),
           ' ',
-          voyage.arrivee.arret !== passage.arret
-            ? `vers ${voyage.arrivee.arret}` : 'terminus',
-          !annule && reel.direct ? [' ', mentionEcart(reel, passage)] : null)),
-      h('span.passage__delai', annule ? '—' : delai(dansMinutes),
-        h('small', annule ? 'supprimé'
-          : (reel.direct ? 'en direct' : jourRelatif(entree))))));
+          voyage.arrivee.arret !== passage.arret ? `vers ${voyage.arrivee.arret}` : 'terminus',
+          !annule && reel.direct ? [' ', mentionEcart(reel, passage)] : null,
+        ),
+      ),
+      h(
+        'span.passage__delai',
+        annule ? '—' : delai(dansMinutes),
+        h('small', annule ? 'supprimé' : reel.direct ? 'en direct' : jourRelatif(entree)),
+      ),
+    ),
+  );
 }
 
 /** « à l’heure », « +4 min », « −2 min » par rapport a la fiche horaire. */
@@ -67,8 +82,10 @@ export function mentionEcart(reel, passage) {
   }
   const signe = reel.ecart > 0 ? '+' : '−';
   const genre = reel.ecart > 0 ? 'alerte' : 'neutre';
-  return h(`span.pastille.pastille--${genre}`,
-    `${signe}${Math.abs(reel.ecart)} min / ${passage.heure}`);
+  return h(
+    `span.pastille.pastille--${genre}`,
+    `${signe}${Math.abs(reel.ecart)} min / ${passage.heure}`,
+  );
 }
 
 function jourRelatif(entree) {
@@ -82,8 +99,7 @@ function jourRelatif(entree) {
  * les deux arrets concernes.
  */
 export function parcoursDuVoyage(voyage, instantCourant, etatTempsReel) {
-  const vehicule = etatTempsReel
-    ? vehiculeDuVoyage(etatTempsReel, voyage) : null;
+  const vehicule = etatTempsReel ? vehiculeDuVoyage(etatTempsReel, voyage) : null;
   const estime = position(voyage, instantCourant);
 
   const etapes = voyage.passages.map((passage) => ({
@@ -102,23 +118,36 @@ export function parcoursDuVoyage(voyage, instantCourant, etatTempsReel) {
   const elements = [];
   etapes.forEach(({ passage, reel }, index) => {
     const passe = instantCourant >= reel.instant;
-    elements.push(h('li', { dataset: { passe: passe ? 'oui' : 'non' } },
-      h('span.parcours__heure', reel.heure),
-      h('span.parcours__rail', h('span.parcours__point')),
-      h('span.parcours__nom', passage.arret,
-        reel.direct && !passe ? [' ', mentionEcart(reel, passage)] : null)));
+    elements.push(
+      h(
+        'li',
+        { dataset: { passe: passe ? 'oui' : 'non' } },
+        h('span.parcours__heure', reel.heure),
+        h('span.parcours__rail', h('span.parcours__point')),
+        h(
+          'span.parcours__nom',
+          passage.arret,
+          reel.direct && !passe ? [' ', mentionEcart(reel, passage)] : null,
+        ),
+      ),
+    );
 
     const iciSelonGps = vehicule && index === Math.max(rangDuVehicule, 0);
-    const iciSelonHoraire = !vehicule && estime.entre
-      && estime.entre[0] === index;
+    const iciSelonHoraire = !vehicule && estime.entre && estime.entre[0] === index;
 
     if (iciSelonGps || iciSelonHoraire) {
-      elements.push(h('li',
-        h('span.parcours__vehicule',
-          vehicule
-            ? libelleVehicule(vehicule)
-            : `Véhicule estimé ici · arrivée à ${estime.vers.arret} `
-              + `vers ${estime.vers.heure}`)));
+      elements.push(
+        h(
+          'li',
+          h(
+            'span.parcours__vehicule',
+            vehicule
+              ? libelleVehicule(vehicule)
+              : `Véhicule estimé ici · arrivée à ${estime.vers.arret} ` +
+                  `vers ${estime.vers.heure}`,
+          ),
+        ),
+      );
     }
   });
 
@@ -132,8 +161,7 @@ function libelleVehicule(vehicule) {
     en_route: 'Véhicule en route vers',
   };
   const etat = etats[vehicule.statut] || 'Véhicule vers';
-  return vehicule.arret ? `${etat} ${vehicule.arret} · GPS`
-    : 'Véhicule ici · GPS';
+  return vehicule.arret ? `${etat} ${vehicule.arret} · GPS` : 'Véhicule ici · GPS';
 }
 
 /**
@@ -141,20 +169,16 @@ function libelleVehicule(vehicule) {
  * qui tient sur une ligne, et le detail du trajet en cours.
  */
 export function resumePosition(voyage, instantCourant, etatTempsReel) {
-  const vehicule = etatTempsReel
-    ? vehiculeDuVoyage(etatTempsReel, voyage) : null;
+  const vehicule = etatTempsReel ? vehiculeDuVoyage(etatTempsReel, voyage) : null;
   if (vehicule && vehicule.arret) {
-    const prochain = voyage.passages.find((p) => !memeArret(vehicule.arret, p.arret)
-      && p.instant >= instantCourant);
-    const reel = prochain
-      ? passageReel(etatTempsReel, voyage, prochain) : null;
+    const prochain = voyage.passages.find(
+      (p) => !memeArret(vehicule.arret, p.arret) && p.instant >= instantCourant,
+    );
+    const reel = prochain ? passageReel(etatTempsReel, voyage, prochain) : null;
     return {
-      titre: vehicule.statut === 'a_l_arret'
-        ? `À l’arrêt ${vehicule.arret}`
-        : `Vers ${vehicule.arret}`,
-      detail: reel
-        ? `${prochain.arret} prévu à ${reel.heure}`
-        : 'position GPS en direct',
+      titre:
+        vehicule.statut === 'a_l_arret' ? `À l’arrêt ${vehicule.arret}` : `Vers ${vehicule.arret}`,
+      detail: reel ? `${prochain.arret} prévu à ${reel.heure}` : 'position GPS en direct',
       direct: true,
     };
   }

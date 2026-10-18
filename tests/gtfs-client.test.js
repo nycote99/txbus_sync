@@ -83,7 +83,10 @@ describe('TransitFeedService', () => {
   it('ne joint même pas le flux quand l’appareil est hors ligne', async () => {
     let appels = 0;
     const svc = new TransitFeedService(REFERENCE, {
-      charger: async () => { appels += 1; return ETAT; },
+      charger: async () => {
+        appels += 1;
+        return ETAT;
+      },
       enLigne: () => false,
     });
     const recus = ecouter(svc);
@@ -96,9 +99,10 @@ describe('TransitFeedService', () => {
   it('abandonne une interrogation qui dépasse le délai strict', async () => {
     const svc = new TransitFeedService(REFERENCE, {
       timeoutMs: 20,
-      charger: async (reference, signal) => new Promise((resolve, reject) => {
-        signal.addEventListener('abort', () => reject(new Error('abandon')));
-      }),
+      charger: async (reference, signal) =>
+        new Promise((resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('abandon')));
+        }),
     });
     const recus = ecouter(svc);
     await svc.rafraichir();
@@ -109,7 +113,10 @@ describe('TransitFeedService', () => {
   it('n’interroge pas le flux pour un écran caché', async () => {
     let appels = 0;
     const svc = new TransitFeedService(REFERENCE, {
-      charger: async () => { appels += 1; return ETAT; },
+      charger: async () => {
+        appels += 1;
+        return ETAT;
+      },
       visible: () => false,
     });
     const recus = ecouter(svc);

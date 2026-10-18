@@ -11,7 +11,13 @@
  */
 
 import {
-  entier, entierSigne, flottant, lireMessage, sousMessage, sousMessages, texte,
+  entier,
+  entierSigne,
+  flottant,
+  lireMessage,
+  sousMessage,
+  sousMessages,
+  texte,
 } from './protobuf.js';
 
 /** Numeros de champs du schema GTFS-RT (gtfs-realtime.proto, version 2.0). */
@@ -115,8 +121,7 @@ function interpreter(flux, reference) {
     if (vehicule) {
       const lu = lireVehicule(entite, vehicule, reference);
       vehicules.push(lu);
-      noterAnnulation(annulations, sousMessage(vehicule, F.vehiculeVoyage),
-        reference, lu);
+      noterAnnulation(annulations, sousMessage(vehicule, F.vehiculeVoyage), reference, lu);
     }
 
     const miseAJour = sousMessage(entite, F.entiteMiseAJour);
@@ -135,8 +140,7 @@ function interpreter(flux, reference) {
     if (alerte) alertes.push(lireAlerte(alerte, reference));
   });
 
-  return { horodatage, vehicules, previsions, previsionsParVoyage, alertes,
-           annulations };
+  return { horodatage, vehicules, previsions, previsionsParVoyage, alertes, annulations };
 }
 
 /** Cle « ligne|direction|depart » d'un TripDescriptor, ou null. */
@@ -144,8 +148,7 @@ function cleDuDescripteur(voyage, reference) {
   if (!voyage) return null;
   const identifiant = texte(voyage, F.voyageId);
   const fiche = identifiant ? reference.voyages[identifiant] : undefined;
-  const route = reference.routes[texte(voyage, F.voyageRoute)
-    || (fiche && fiche.route)];
+  const route = reference.routes[texte(voyage, F.voyageRoute) || (fiche && fiche.route)];
   const depart = texte(voyage, F.voyageDepart);
   if (!route || !route.famille || !fiche || !fiche.direction || !depart) {
     return null;
@@ -166,11 +169,10 @@ function noterAnnulation(annulations, voyage, reference, dejaLu) {
 
   const identifiant = texte(voyage, F.voyageId);
   const fiche = identifiant ? reference.voyages[identifiant] : undefined;
-  const route = reference.routes[texte(voyage, F.voyageRoute)
-    || (fiche && fiche.route)];
+  const route = reference.routes[texte(voyage, F.voyageRoute) || (fiche && fiche.route)];
   const depart = texte(voyage, F.voyageDepart);
-  const ligne = dejaLu ? dejaLu.ligne : (route ? route.famille : null);
-  const direction = dejaLu ? dejaLu.direction : (fiche ? fiche.direction : null);
+  const ligne = dejaLu ? dejaLu.ligne : route ? route.famille : null;
+  const direction = dejaLu ? dejaLu.direction : fiche ? fiche.direction : null;
   if (!ligne || !direction || !depart) return;
 
   annulations.set(cleDeVoyage(ligne, direction, depart.slice(0, 5)), {
@@ -188,8 +190,7 @@ export function cleDeVoyage(ligne, direction, depart) {
 /** Ce voyage de l'horaire publie est-il annule aujourd'hui ? */
 export function voyageAnnule(etat, voyage) {
   if (!etat || !etat.annulations || !etat.annulations.size) return false;
-  return etat.annulations.has(
-    cleDeVoyage(voyage.ligne, voyage.direction, voyage.depart.heure));
+  return etat.annulations.has(cleDeVoyage(voyage.ligne, voyage.direction, voyage.depart.heure));
 }
 
 function lireVehicule(entite, vehicule, reference) {
@@ -220,8 +221,7 @@ function lireVehicule(entite, vehicule, reference) {
     cap: position && flottant(position, F.positionCap),
     vitesse: position && flottant(position, F.positionVitesse),
     arretId,
-    arret: arretId && reference.arrets[arretId]
-      ? reference.arrets[arretId].nom : null,
+    arret: arretId && reference.arrets[arretId] ? reference.arrets[arretId].nom : null,
     sequence: entier(vehicule, F.vehiculeSequence),
     statut: STATUTS[entier(vehicule, F.vehiculeStatut)] || 'en_route',
     horodatage: entier(vehicule, F.vehiculeHorodatage),
@@ -234,21 +234,22 @@ function lireVehicule(entite, vehicule, reference) {
  * l'horaire publie.
  */
 function lirePrevisions(miseAJour, reference) {
-  return sousMessages(miseAJour, F.majArrets).map((maj) => {
-    const arrivee = sousMessage(maj, F.arretArrivee);
-    const depart = sousMessage(maj, F.arretDepart);
-    const evenement = arrivee || depart;
-    const arretId = texte(maj, F.arretId);
-    return {
-      sequence: entier(maj, F.arretSequence),
-      arretId,
-      arret: arretId && reference.arrets[arretId]
-        ? reference.arrets[arretId].nom : null,
-      heure: evenement ? entier(evenement, F.evenementHeure) : undefined,
-      retard: evenement ? entierSigne(evenement, F.evenementRetard) : undefined,
-      saute: entier(maj, F.arretRelation) === ARRET_SAUTE,
-    };
-  }).filter((prevision) => prevision.heure !== undefined || prevision.saute);
+  return sousMessages(miseAJour, F.majArrets)
+    .map((maj) => {
+      const arrivee = sousMessage(maj, F.arretArrivee);
+      const depart = sousMessage(maj, F.arretDepart);
+      const evenement = arrivee || depart;
+      const arretId = texte(maj, F.arretId);
+      return {
+        sequence: entier(maj, F.arretSequence),
+        arretId,
+        arret: arretId && reference.arrets[arretId] ? reference.arrets[arretId].nom : null,
+        heure: evenement ? entier(evenement, F.evenementHeure) : undefined,
+        retard: evenement ? entierSigne(evenement, F.evenementRetard) : undefined,
+        saute: entier(maj, F.arretRelation) === ARRET_SAUTE,
+      };
+    })
+    .filter((prevision) => prevision.heure !== undefined || prevision.saute);
 }
 
 function lireAlerte(alerte, reference) {
@@ -286,8 +287,11 @@ function lirePortee(alerte, reference) {
     if (!route && !arretId && !sousMessage(cible, F.cibleVoyage)) reseau = true;
   });
 
-  return { reseau: reseau || (!lignes.size && !arrets.size),
-           lignes: [...lignes], arrets: [...arrets] };
+  return {
+    reseau: reseau || (!lignes.size && !arrets.size),
+    lignes: [...lignes],
+    arrets: [...arrets],
+  };
 }
 
 /** L'avis concerne-t-il cette ligne ? Un avis reseau concerne tout le monde. */
@@ -306,25 +310,26 @@ export function enTexteSimple(valeur) {
   let resultat = '';
   for (const caractere of valeur) {
     const point = caractere.codePointAt(0);
-    resultat += PLAGES_MATHEMATIQUES.reduce((acc, plage) => {
-      if (acc !== null) return acc;
-      if (point < plage.debut || point > plage.debut + plage.taille - 1) return null;
-      return String.fromCharCode(plage.cible + (point - plage.debut));
-    }, null) ?? caractere;
+    resultat +=
+      PLAGES_MATHEMATIQUES.reduce((acc, plage) => {
+        if (acc !== null) return acc;
+        if (point < plage.debut || point > plage.debut + plage.taille - 1) return null;
+        return String.fromCharCode(plage.cible + (point - plage.debut));
+      }, null) ?? caractere;
   }
   return resultat.replace(/\s+\n/g, '\n').trim();
 }
 
 /** Blocs « Mathematical Alphanumeric Symbols » vers ASCII. */
 const PLAGES_MATHEMATIQUES = [
-  { debut: 0x1d400, taille: 26, cible: 65 },  // gras majuscules
-  { debut: 0x1d41a, taille: 26, cible: 97 },  // gras minuscules
-  { debut: 0x1d5d4, taille: 26, cible: 65 },  // sans empattement gras maj.
-  { debut: 0x1d5ee, taille: 26, cible: 97 },  // sans empattement gras min.
-  { debut: 0x1d608, taille: 26, cible: 65 },  // sans empattement italique maj.
-  { debut: 0x1d622, taille: 26, cible: 97 },  // sans empattement italique min.
-  { debut: 0x1d7ec, taille: 10, cible: 48 },  // chiffres gras
-  { debut: 0x1d7ce, taille: 10, cible: 48 },  // chiffres gras (serif)
+  { debut: 0x1d400, taille: 26, cible: 65 }, // gras majuscules
+  { debut: 0x1d41a, taille: 26, cible: 97 }, // gras minuscules
+  { debut: 0x1d5d4, taille: 26, cible: 65 }, // sans empattement gras maj.
+  { debut: 0x1d5ee, taille: 26, cible: 97 }, // sans empattement gras min.
+  { debut: 0x1d608, taille: 26, cible: 65 }, // sans empattement italique maj.
+  { debut: 0x1d622, taille: 26, cible: 97 }, // sans empattement italique min.
+  { debut: 0x1d7ec, taille: 10, cible: 48 }, // chiffres gras
+  { debut: 0x1d7ce, taille: 10, cible: 48 }, // chiffres gras (serif)
 ];
 
 function traduire(chaineTraduite) {
@@ -341,9 +346,14 @@ function traduire(chaineTraduite) {
  */
 export function vehiculeDuVoyage(etat, voyage) {
   if (!etat) return null;
-  return etat.vehicules.find((vehicule) => vehicule.ligne === voyage.ligne
-    && vehicule.direction === voyage.direction
-    && vehicule.depart === voyage.depart.heure) || null;
+  return (
+    etat.vehicules.find(
+      (vehicule) =>
+        vehicule.ligne === voyage.ligne &&
+        vehicule.direction === voyage.direction &&
+        vehicule.depart === voyage.depart.heure,
+    ) || null
+  );
 }
 
 /** Heure de passage prevue d'un vehicule a un arret nomme, en secondes epoch. */
@@ -362,12 +372,12 @@ export function previsionsDuVoyage(etat, voyage) {
   const parVoyage = etat.previsionsParVoyage;
   if (parVoyage) {
     const trouvees = parVoyage.get(
-      cleDeVoyage(voyage.ligne, voyage.direction, voyage.depart.heure));
+      cleDeVoyage(voyage.ligne, voyage.direction, voyage.depart.heure),
+    );
     if (trouvees) return trouvees;
   }
   const vehicule = vehiculeDuVoyage(etat, voyage);
-  return vehicule && vehicule.voyageId
-    ? etat.previsions.get(vehicule.voyageId) || null : null;
+  return vehicule && vehicule.voyageId ? etat.previsions.get(vehicule.voyageId) || null : null;
 }
 
 /**
@@ -390,8 +400,10 @@ function chercherPrevision(previsions, arret) {
     const parId = previsions.find((prevision) => prevision.arretId === id);
     if (parId) return parId;
   }
-  return previsions.find((prevision) => prevision.arret && nom
-    && memeArret(prevision.arret, nom)) || null;
+  return (
+    previsions.find((prevision) => prevision.arret && nom && memeArret(prevision.arret, nom)) ||
+    null
+  );
 }
 
 /**
@@ -404,7 +416,9 @@ export function memeArret(a, b) {
 }
 
 function reduire(nom) {
-  return nom.normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return nom
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/\b(de|du|des|la|le|les|l|d)\b/g, '')
     .replace(/[^a-z0-9]/g, '');

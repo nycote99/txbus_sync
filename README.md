@@ -5,8 +5,8 @@ Application web qui réunit en un seul endroit les services de la
 la ligne 10, les circuits express 750-753 et le taxibus régional.
 
 Elle répond à trois questions que le site officiel oblige aujourd’hui à poser
-à trois endroits différents : *quand passe mon autobus*, *où est-il en ce
-moment*, et surtout *jusqu’à quand puis-je encore réserver mon taxibus*.
+à trois endroits différents : _quand passe mon autobus_, _où est-il en ce
+moment_, et surtout _jusqu’à quand puis-je encore réserver mon taxibus_.
 
 ## Ce que l’application fait
 
@@ -51,7 +51,7 @@ sans position GPS resterait exploitable.
 problème : rentrer en express, puis prendre un taxibus. On choisit d’où l’on
 part, où l’on descend, vers quelle zone on poursuit et quel jour ; l’écran rend
 chaque express de la journée avec le taxibus qui le prolonge, le temps
-d’attente, et un verdict qui dit *quand* réserver.
+d’attente, et un verdict qui dit _quand_ réserver.
 
 Le temps réel s’y greffe : quand le retard dépasse le jeu de la
 correspondance, l’écran annonce que le taxibus visé **n’est plus rattrapable**
@@ -90,8 +90,10 @@ index.html                  coquille de l'application
 assets/css/app.css          jetons de couleur, mise en page adaptative
 assets/js/calendrier.js     jours de service, jours fériés, heures du terminus
 assets/js/reseau.js         requêtes d'horaire, heures limites, position
+assets/js/booking-rules.js  moteur de règles de réservation du taxibus
 assets/js/protobuf.js       lecteur minimal du format de fil protobuf
 assets/js/tempsreel.js      flux GTFS-RT : positions, prévisions, avis
+assets/js/gtfs-client.js    télémétrie du flux : états DIRECT/DÉGRADÉ/HORS LIGNE
 assets/js/plan.js           projection et géométrie du plan du réseau
 assets/js/proximite.js      arrêts les plus proches d'une position
 assets/js/rappel.js         fichier calendrier de rappel d'une heure limite
@@ -108,19 +110,22 @@ tools/verifier_service_worker.py  contrôle de la coquille hors ligne
 tools/veiller_sources.py    veille hebdomadaire sur les horaires publiés
 ```
 
-Aucune dépendance, aucune étape de compilation : les fichiers publiés sont les
-fichiers servis. Le flux temps réel est un protobuf binaire ; plutôt que
+Aucune dépendance à l'exécution, aucune étape de compilation : les fichiers
+publiés sont les fichiers servis. Les seuls paquets npm du dépôt sont des
+outils de développement (tests, analyse statique, typage). La cartographie
+complète des modules et les choix d'architecture vivent dans
+[ARCHITECTURE.md](ARCHITECTURE.md). Le flux temps réel est un protobuf binaire ; plutôt que
 d'embarquer une bibliothèque de plusieurs centaines de kilo-octets pour lire
 une dizaine de champs, `protobuf.js` décode directement le format de fil, qui
 n'a que quatre types.
 
 ## Sources de données
 
-| Source | Contenu | Rafraîchissement |
-|---|---|---|
-| Fiches PDF de la STC | horaires ligne 10, express, taxibus par zone | à la main, ~2 fois l'an, sur alerte de la veille |
-| GTFS statique Zenbus | noms des lignes, parcours complet des arrêts, directions | à la main, avec les PDF |
-| GTFS-RT Zenbus | positions GPS, heures prévues, avis de service | toutes les 30 s dans le navigateur |
+| Source               | Contenu                                                  | Rafraîchissement                                 |
+| -------------------- | -------------------------------------------------------- | ------------------------------------------------ |
+| Fiches PDF de la STC | horaires ligne 10, express, taxibus par zone             | à la main, ~2 fois l'an, sur alerte de la veille |
+| GTFS statique Zenbus | noms des lignes, parcours complet des arrêts, directions | à la main, avec les PDF                          |
+| GTFS-RT Zenbus       | positions GPS, heures prévues, avis de service           | toutes les 30 s dans le navigateur               |
 
 Le taxibus n'est pas dans le GTFS : il reste entièrement décrit par les fiches
 PDF, et ses heures limites de réservation sont calculées par l'application.
@@ -181,7 +186,11 @@ desservent la même intersection de part et d'autre de la rue, sous le même nom
 
 ## Développement
 
+Prérequis : Node.js 18 ou plus (la CI utilise Node 22) et Python 3.12, pour
+les tests et les vérificateurs. L'application elle-même n'exige rien.
+
 ```sh
+npm ci                        # outils de développement seulement
 python3 -m http.server 8000   # puis http://localhost:8000
 ```
 
@@ -193,7 +202,7 @@ Un serveur local est nécessaire : l’application charge `data/horaires.json` p
 La STC publie ses horaires en PDF, deux fois par année environ. Pour les
 reprendre :
 
-1. relever les nouvelles adresses des PDF sur les pages *Horaire et parcours*
+1. relever les nouvelles adresses des PDF sur les pages _Horaire et parcours_
    du site de la STC, et les inscrire dans le dictionnaire `SOURCES` de
    `tools/parse_horaires.py` ;
 2. régénérer et vérifier :
@@ -231,7 +240,7 @@ c'est elle que `parse_gtfs.py` utilise.
 
 ### Où est l'autobus, sur le vrai parcours
 
-La liste des passages dit quel arrêt vient ensuite. Elle ne dit pas *où* on en
+La liste des passages dit quel arrêt vient ensuite. Elle ne dit pas _où_ on en
 est — quarante-trois arrêts défilent sans qu'on sache si l'autobus a passé la
 rivière. Le suivi d'un voyage porte donc un plan : le parcours réel, les arrêts,
 la portion déjà faite en couleur, et le véhicule dessus.
@@ -279,7 +288,7 @@ périmées, avec assurance — heures limites de réservation comprises.
 Surveiller les adresses connues ne verrait rien venir : le nom du fichier porte
 sa date, `20260817_Horaire_ligne10_VF.pdf`, et l'ancienne adresse reste servie
 telle quelle. `veiller_sources.py` relit donc les trois pages horaires du site
-et regarde quels PDF elles pointent *aujourd'hui*. Il signale trois choses :
+et regarde quels PDF elles pointent _aujourd'hui_. Il signale trois choses :
 
 - une page pointe une fiche que l'application ne connaît pas ;
 - un PDF connu a changé de contenu sans changer d'adresse ;
@@ -297,11 +306,11 @@ réel, vérifie que tout élément focusable porte un nom accessible et que les
 titres ne sautent pas de niveau. Trois défauts réels en sont sortis, tous
 corrigés :
 
-| Défaut | Ratio | Correction |
-|---|---|---|
-| « Réservable » sur sa pastille, thème clair | 4,30 | `--ok` assombri à `#147a3a` |
-| « À réserver avant d'arriver » et le bandeau d'alerte, thème clair | 4,46 | `--alerte` assombri à `#b05109` |
-| « Réserver », thème sombre | 2,21 | nouveau jeton `--sur-marque` : `--marque` est une teinte *claire* en thème sombre, le blanc n'y tenait pas |
+| Défaut                                                             | Ratio | Correction                                                                                                 |
+| ------------------------------------------------------------------ | ----- | ---------------------------------------------------------------------------------------------------------- |
+| « Réservable » sur sa pastille, thème clair                        | 4,30  | `--ok` assombri à `#147a3a`                                                                                |
+| « À réserver avant d'arriver » et le bandeau d'alerte, thème clair | 4,46  | `--alerte` assombri à `#b05109`                                                                            |
+| « Réserver », thème sombre                                         | 2,21  | nouveau jeton `--sur-marque` : `--marque` est une teinte _claire_ en thème sombre, le blanc n'y tenait pas |
 
 Le script s'était d'abord trompé lui-même : `getComputedStyle` rend
 `color(srgb 1 1 1 / 0.94)` pour un `color-mix`, avec des composantes de 0 à 1
@@ -325,8 +334,8 @@ estimées, et les nouveaux avis de service. L'horloge d'en-tête porte
 
 ## Vérifications
 
-`.github/workflows/verifier.yml` exécute les deux contrôles sur chaque *pull
-request* et sur `main` :
+`.github/workflows/verifier.yml` exécute les deux contrôles sur chaque _pull
+request_ et sur `main` :
 
 ```sh
 node --test tests/*.test.js               # logique du calendrier et des limites
@@ -336,7 +345,7 @@ python3 tools/verifier_service_worker.py  # complétude de la coquille hors lign
 ```
 
 `tools/veiller_sources.py` n'y figure pas : il interroge le site de la STC et
-n'a donc rien à faire dans un contrôle de *pull request*, qui doit rester
+n'a donc rien à faire dans un contrôle de _pull request_, qui doit rester
 déterministe. Il tourne à part, sur son propre calendrier.
 
 Les tests couvrent ce que l'usager ne peut pas vérifier lui-même : le calcul
@@ -352,9 +361,12 @@ de service, le calcul de la fête des Patriotes, la lecture des entiers longs et
 le rapprochement des noms d'arrêts : chacune des six régressions fait échouer
 la suite.
 
-Le fichier `package.json` ne sert qu'à déclarer les fichiers `.js` comme
-modules ES, pour que node les charge comme le fait le navigateur. Le projet n'a
-toujours aucune dépendance.
+Le fichier `package.json` déclare les fichiers `.js` comme modules ES, pour
+que node les charge comme le fait le navigateur, et porte les scripts des
+contrôles : tests, ESLint, Prettier, TypeScript en mode `checkJs` sur les
+annotations JSDoc. Ces paquets sont des outils de développement ; le projet
+n'a toujours aucune dépendance à l'exécution. Côté Python, Ruff garde les
+scripts de `tools/`.
 
 Le contrôle de la coquille attrape le module oublié dans `service-worker.js` :
 la page continue de fonctionner en développement, et casse chez l'usager qui la
@@ -370,14 +382,14 @@ Le site est publié sur GitHub Pages :
 Deux façons de le servir, au choix.
 
 **Depuis une branche** (configuration actuelle). GitHub publie le contenu de la
-branche choisie dans *Settings → Pages → Source : Deploy from a branch*. Rien
+branche choisie dans _Settings → Pages → Source : Deploy from a branch_. Rien
 d'autre à faire : le dépôt ne contient aucune étape de compilation, les
 fichiers publiés sont les fichiers servis. Après la fusion, pointer la source
 sur `main`, sinon le site cesse d'être mis à jour quand la branche de travail
 disparaît.
 
-**Par le workflow** (`.github/workflows/pages.yml`). Choisir *Settings → Pages
-→ Source : GitHub Actions*. Chaque push sur `main` vérifie alors les données et
+**Par le workflow** (`.github/workflows/pages.yml`). Choisir _Settings → Pages
+→ Source : GitHub Actions_. Chaque push sur `main` vérifie alors les données et
 la coquille hors ligne **avant** de publier, ce qui empêche une extraction
 ratée d'atteindre le site. Ce workflow reste inerte tant que la source est une
 branche.
@@ -393,3 +405,9 @@ l’information de la STC prévaut.**
 
 Réservation et suivi : <https://stc.accestaxi.com/> ·
 Terminus des Promenades — STC : 450 743-3336 / 1 833 703-3336
+
+## Licence
+
+Le code est distribué sous licence MIT (voir [LICENSE](LICENSE)). Les données
+d'horaires restent la propriété de la STC Pierre-De Saurel ; ce projet n'a
+aucun lien avec elle.

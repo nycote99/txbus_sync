@@ -10,16 +10,22 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-  alerteConcerne, chargerTempsReel, enTexteSimple, memeArret, previsionA,
-  previsionDuVoyageA, previsionsDuVoyage, vehiculeDuVoyage, voyageAnnule,
+  alerteConcerne,
+  chargerTempsReel,
+  enTexteSimple,
+  memeArret,
+  previsionA,
+  previsionDuVoyageA,
+  previsionsDuVoyage,
+  vehiculeDuVoyage,
+  voyageAnnule,
 } from '../assets/js/tempsreel.js';
 import { instantDepuisEpoch } from '../assets/js/calendrier.js';
 
 import { lireReseauGtfs } from './aide.js';
 
 const reference = lireReseauGtfs();
-const echantillon = readFileSync(
-  fileURLToPath(new URL('flux-exemple.pb', import.meta.url)));
+const echantillon = readFileSync(fileURLToPath(new URL('flux-exemple.pb', import.meta.url)));
 
 /** Remplace fetch le temps d'un appel, pour éprouver le chargement du flux. */
 async function avecFlux(reponse, action) {
@@ -34,14 +40,16 @@ async function avecFlux(reponse, action) {
 
 const fluxValide = () => ({
   ok: true,
-  arrayBuffer: async () => echantillon.buffer.slice(
-    echantillon.byteOffset, echantillon.byteOffset + echantillon.byteLength),
+  arrayBuffer: async () =>
+    echantillon.buffer.slice(
+      echantillon.byteOffset,
+      echantillon.byteOffset + echantillon.byteLength,
+    ),
 });
 
 describe('chargement du flux', () => {
   it('décode un flux réel et nomme ce qu’il contient', async () => {
-    const etat = await avecFlux(fluxValide,
-      () => chargerTempsReel(reference));
+    const etat = await avecFlux(fluxValide, () => chargerTempsReel(reference));
 
     assert.ok(etat, 'le flux aurait dû être décodé');
     assert.ok(etat.horodatage > 1_700_000_000);
@@ -49,8 +57,7 @@ describe('chargement du flux', () => {
 
     for (const vehicule of etat.vehicules) {
       assert.ok(['ligne10', 'express'].includes(vehicule.ligne));
-      assert.ok(['cegep', 'terminus', 'longueuil', 'sorel']
-        .includes(vehicule.direction));
+      assert.ok(['cegep', 'terminus', 'longueuil', 'sorel'].includes(vehicule.direction));
       assert.match(vehicule.depart, /^\d{2}:\d{2}$/);
       assert.ok(vehicule.latitude > 45 && vehicule.latitude < 47);
       assert.ok(vehicule.longitude > -74 && vehicule.longitude < -72);
@@ -84,8 +91,10 @@ describe('chargement du flux', () => {
       const texte = `${alerte.titre || ''} ${alerte.texte || ''}`;
       for (const caractere of texte) {
         const point = caractere.codePointAt(0);
-        assert.ok(point < 0x1d400 || point > 0x1d7ff,
-          `caractère mathématique resté dans un avis : ${caractere}`);
+        assert.ok(
+          point < 0x1d400 || point > 0x1d7ff,
+          `caractère mathématique resté dans un avis : ${caractere}`,
+        );
       }
     }
   });
@@ -94,22 +103,27 @@ describe('chargement du flux', () => {
 describe('effacement silencieux quand le flux manque', () => {
   it('rend null sur une erreur réseau', async () => {
     const etat = await avecFlux(
-      () => { throw new Error('hors ligne'); },
-      () => chargerTempsReel(reference));
+      () => {
+        throw new Error('hors ligne');
+      },
+      () => chargerTempsReel(reference),
+    );
     assert.equal(etat, null);
   });
 
   it('rend null sur une réponse en erreur', async () => {
     const etat = await avecFlux(
       () => ({ ok: false, status: 503 }),
-      () => chargerTempsReel(reference));
+      () => chargerTempsReel(reference),
+    );
     assert.equal(etat, null);
   });
 
   it('rend null sur un flux illisible plutôt que de propager', async () => {
     const etat = await avecFlux(
       () => ({ ok: true, arrayBuffer: async () => new Uint8Array([0x0c, 0x00]).buffer }),
-      () => chargerTempsReel(reference));
+      () => chargerTempsReel(reference),
+    );
     assert.equal(etat, null);
   });
 });
@@ -125,7 +139,8 @@ describe('appariement avec l’horaire publié', () => {
     const etat = await avecFlux(fluxValide, () => chargerTempsReel(reference));
     const reel = etat.vehicules[0];
     const voyage = {
-      ligne: reel.ligne, direction: reel.direction,
+      ligne: reel.ligne,
+      direction: reel.direction,
       depart: { heure: reel.depart },
     };
     assert.equal(vehiculeDuVoyage(etat, voyage).voyageId, reel.voyageId);
@@ -152,11 +167,11 @@ describe('appariement avec l’horaire publié', () => {
 describe('rapprochement des noms d’arrêts', () => {
   it('réconcilie les écarts de graphie entre les deux sources', () => {
     assert.ok(memeArret('Hôtel-Dieu (Hôpital)', 'Hôtel-Dieu (hôpital)'));
-    assert.ok(memeArret('Stationnement incitatif de la Plaza Tracy',
-      'Stationnement incitatif Plaza Tracy'));
+    assert.ok(
+      memeArret('Stationnement incitatif de la Plaza Tracy', 'Stationnement incitatif Plaza Tracy'),
+    );
     assert.ok(memeArret('Cégep de Sorel-Tracy', 'CÉGEP de Sorel-Tracy'));
-    assert.ok(memeArret('Terminus Longueuil (porte A7)',
-      'Terminus Longueuil (porte A7)'));
+    assert.ok(memeArret('Terminus Longueuil (porte A7)', 'Terminus Longueuil (porte A7)'));
   });
 
   it('distingue deux arrêts opposés qui portent les mêmes mots', () => {
@@ -179,8 +194,10 @@ describe('mise en texte simple des avis', () => {
   });
 
   it('laisse intacts les accents et la ponctuation française', () => {
-    assert.equal(enTexteSimple('Réfection déjà à côté — l’arrêt n° 5'),
-      'Réfection déjà à côté — l’arrêt n° 5');
+    assert.equal(
+      enTexteSimple('Réfection déjà à côté — l’arrêt n° 5'),
+      'Réfection déjà à côté — l’arrêt n° 5',
+    );
   });
 
   it('laisse passer les valeurs vides', () => {
@@ -191,7 +208,9 @@ describe('mise en texte simple des avis', () => {
 
 describe('mises à jour sans position de véhicule', () => {
   const voyage = {
-    ligne: 'express', direction: 'sorel', depart: { heure: '23:40' },
+    ligne: 'express',
+    direction: 'sorel',
+    depart: { heure: '23:40' },
   };
 
   /** Flux ne portant que des prévisions, sans aucune position GPS. */
@@ -199,9 +218,9 @@ describe('mises à jour sans position de véhicule', () => {
     horodatage: 0,
     vehicules: [],
     previsions: new Map(),
-    previsionsParVoyage: new Map([['express|sorel|23:40', [
-      { arret: 'Terminus des Promenades - STC', heure: 1_800_000_000 },
-    ]]]),
+    previsionsParVoyage: new Map([
+      ['express|sorel|23:40', [{ arret: 'Terminus des Promenades - STC', heure: 1_800_000_000 }]],
+    ]),
     alertes: [],
     annulations: new Map(),
   };
@@ -213,8 +232,7 @@ describe('mises à jour sans position de véhicule', () => {
   });
 
   it('retrouve la prévision d’un arrêt nommé', () => {
-    const prevision = previsionDuVoyageA(etatSansVehicule, voyage,
-      'Terminus des Promenades - STC');
+    const prevision = previsionDuVoyageA(etatSansVehicule, voyage, 'Terminus des Promenades - STC');
     assert.equal(prevision.heure, 1_800_000_000);
   });
 
@@ -223,48 +241,59 @@ describe('mises à jour sans position de véhicule', () => {
     // part et d'autre de la rue, à vingt minutes d'écart. Le nom seul les
     // confond ; l'identifiant GTFS les sépare.
     const etat = {
-      previsionsParVoyage: new Map([['ligne10|cegep|09:45', [
-        { arretId: 'SP:aller', arret: 'Marie-Victorin / Rivard',
-          heure: 1_800_000_100 },
-        { arretId: 'SP:retour', arret: 'Marie-Victorin / Rivard',
-          heure: 1_800_001_300 },
-      ]]]),
+      previsionsParVoyage: new Map([
+        [
+          'ligne10|cegep|09:45',
+          [
+            { arretId: 'SP:aller', arret: 'Marie-Victorin / Rivard', heure: 1_800_000_100 },
+            { arretId: 'SP:retour', arret: 'Marie-Victorin / Rivard', heure: 1_800_001_300 },
+          ],
+        ],
+      ]),
       previsions: new Map(),
       vehicules: [],
       annulations: new Map(),
     };
-    const voyageLigne10 = { ligne: 'ligne10', direction: 'cegep',
-                            depart: { heure: '09:45' } };
-    assert.equal(previsionDuVoyageA(etat, voyageLigne10,
-      { id: 'SP:retour', arret: 'Marie-Victorin / Rivard' }).heure,
-    1_800_001_300);
+    const voyageLigne10 = { ligne: 'ligne10', direction: 'cegep', depart: { heure: '09:45' } };
+    assert.equal(
+      previsionDuVoyageA(etat, voyageLigne10, { id: 'SP:retour', arret: 'Marie-Victorin / Rivard' })
+        .heure,
+      1_800_001_300,
+    );
     // Sans identifiant, on retombe sur le nom : la première prévision gagne.
-    assert.equal(previsionDuVoyageA(etat, voyageLigne10,
-      { id: null, arret: 'Marie-Victorin / Rivard' }).heure, 1_800_000_100);
+    assert.equal(
+      previsionDuVoyageA(etat, voyageLigne10, { id: null, arret: 'Marie-Victorin / Rivard' }).heure,
+      1_800_000_100,
+    );
   });
 
   it('retombe sur le nom quand l’identifiant est inconnu du flux', () => {
-    const prevision = previsionDuVoyageA(etatSansVehicule, voyage,
-      { id: 'SP:jamais-vu', arret: 'Terminus des Promenades - STC' });
+    const prevision = previsionDuVoyageA(etatSansVehicule, voyage, {
+      id: 'SP:jamais-vu',
+      arret: 'Terminus des Promenades - STC',
+    });
     assert.equal(prevision.heure, 1_800_000_000);
   });
 
   it('ne trouve rien pour un voyage absent du flux', () => {
-    assert.equal(previsionsDuVoyage(etatSansVehicule,
-      { ...voyage, depart: { heure: '05:30' } }), null);
+    assert.equal(
+      previsionsDuVoyage(etatSansVehicule, { ...voyage, depart: { heure: '05:30' } }),
+      null,
+    );
   });
 
   it('retombe sur l’index par véhicule si le nouvel index manque', () => {
     const ancien = {
-      vehicules: [{ voyageId: 'v1', ligne: 'express', direction: 'sorel',
-                    depart: '23:40' }],
-      previsions: new Map([['v1', [
-        { arret: 'Terminus des Promenades - STC', heure: 1_800_000_042 },
-      ]]]),
+      vehicules: [{ voyageId: 'v1', ligne: 'express', direction: 'sorel', depart: '23:40' }],
+      previsions: new Map([
+        ['v1', [{ arret: 'Terminus des Promenades - STC', heure: 1_800_000_042 }]],
+      ]),
       annulations: new Map(),
     };
-    assert.equal(previsionDuVoyageA(ancien, voyage,
-      'Terminus des Promenades - STC').heure, 1_800_000_042);
+    assert.equal(
+      previsionDuVoyageA(ancien, voyage, 'Terminus des Promenades - STC').heure,
+      1_800_000_042,
+    );
   });
 });
 
@@ -272,18 +301,33 @@ describe('voyages déclarés supprimés', () => {
   const annulations = new Map([['ligne10|cegep|08:20', {}]]);
 
   it('reconnaît un voyage annulé', () => {
-    assert.equal(voyageAnnule({ annulations },
-      { ligne: 'ligne10', direction: 'cegep', depart: { heure: '08:20' } }), true);
+    assert.equal(
+      voyageAnnule(
+        { annulations },
+        { ligne: 'ligne10', direction: 'cegep', depart: { heure: '08:20' } },
+      ),
+      true,
+    );
   });
 
   it('ne confond pas un autre départ de la même direction', () => {
-    assert.equal(voyageAnnule({ annulations },
-      { ligne: 'ligne10', direction: 'cegep', depart: { heure: '08:25' } }), false);
+    assert.equal(
+      voyageAnnule(
+        { annulations },
+        { ligne: 'ligne10', direction: 'cegep', depart: { heure: '08:25' } },
+      ),
+      false,
+    );
   });
 
   it('ne confond pas l’autre direction', () => {
-    assert.equal(voyageAnnule({ annulations },
-      { ligne: 'ligne10', direction: 'terminus', depart: { heure: '08:20' } }), false);
+    assert.equal(
+      voyageAnnule(
+        { annulations },
+        { ligne: 'ligne10', direction: 'terminus', depart: { heure: '08:20' } },
+      ),
+      false,
+    );
   });
 
   it('ne voit aucune annulation sans flux', () => {

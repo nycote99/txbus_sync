@@ -6,6 +6,10 @@
  * depuis le cache, puis rafraichies en arriere-plan.
  */
 
+/** Le contexte global du service worker, nommé : `self` tout court,
+ * TypeScript le confondrait avec la fenêtre du navigateur. */
+const soi = /** @type {ServiceWorkerGlobalScope} */ (/** @type {unknown} */ (self));
+
 const VERSION = 'sorel-transit-v5';
 const COQUILLE = [
   './',
@@ -42,36 +46,42 @@ const COQUILLE = [
 // consulte un horaire remplacerait sous les yeux de l'usager des heures qu'il
 // est peut-etre en train de noter. La nouvelle version attend donc, la page
 // l'annonce, et c'est l'usager qui decide du moment.
-self.addEventListener('install', (evenement) => {
+soi.addEventListener('install', (evenement) => {
   evenement.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(COQUILLE)));
 });
 
-self.addEventListener('message', (evenement) => {
-  if (evenement.data && evenement.data.type === 'ACTIVER') self.skipWaiting();
+soi.addEventListener('message', (evenement) => {
+  if (evenement.data && evenement.data.type === 'ACTIVER') soi.skipWaiting();
 });
 
-self.addEventListener('activate', (evenement) => {
-  evenement.waitUntil(caches.keys()
-    .then((cles) => Promise.all(cles
-      .filter((cle) => cle !== VERSION)
-      .map((cle) => caches.delete(cle))))
-    .then(() => self.clients.claim()));
+soi.addEventListener('activate', (evenement) => {
+  evenement.waitUntil(
+    caches
+      .keys()
+      .then((cles) =>
+        Promise.all(cles.filter((cle) => cle !== VERSION).map((cle) => caches.delete(cle))),
+      )
+      .then(() => soi.clients.claim()),
+  );
 });
 
-self.addEventListener('fetch', (evenement) => {
+soi.addEventListener('fetch', (evenement) => {
   const requete = evenement.request;
   if (requete.method !== 'GET') return;
-  if (new URL(requete.url).origin !== self.location.origin) return;
+  if (new URL(requete.url).origin !== soi.location.origin) return;
 
-  evenement.respondWith(caches.match(requete, { ignoreSearch: true })
-    .then((enCache) => {
-      const reseau = fetch(requete).then((reponse) => {
-        if (reponse.ok) {
-          const copie = reponse.clone();
-          caches.open(VERSION).then((cache) => cache.put(requete, copie));
-        }
-        return reponse;
-      }).catch(() => enCache);
+  evenement.respondWith(
+    caches.match(requete, { ignoreSearch: true }).then((enCache) => {
+      const reseau = fetch(requete)
+        .then((reponse) => {
+          if (reponse.ok) {
+            const copie = reponse.clone();
+            caches.open(VERSION).then((cache) => cache.put(requete, copie));
+          }
+          return reponse;
+        })
+        .catch(() => enCache);
       return enCache || reseau;
-    }));
+    }),
+  );
 });

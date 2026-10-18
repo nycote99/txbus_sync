@@ -33,8 +33,10 @@ export const MARGE = 0.06;
 export function cadre(points, largeur = 100, hauteur = 100) {
   if (!points.length) return null;
 
-  let minLat = Infinity; let maxLat = -Infinity;
-  let minLon = Infinity; let maxLon = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLon = Infinity;
+  let maxLon = -Infinity;
   points.forEach(([lat, lon]) => {
     if (lat < minLat) minLat = lat;
     if (lat > maxLat) maxLat = lat;
@@ -49,8 +51,10 @@ export function cadre(points, largeur = 100, hauteur = 100) {
   const enHauteur = Math.max((maxLat - minLat) * METRES_PAR_DEGRE_LAT, 1);
 
   // Une seule echelle pour les deux axes : c'est ce qui garde les proportions.
-  const echelle = Math.min(largeur / (enLargeur * (1 + 2 * MARGE)),
-    hauteur / (enHauteur * (1 + 2 * MARGE)));
+  const echelle = Math.min(
+    largeur / (enLargeur * (1 + 2 * MARGE)),
+    hauteur / (enHauteur * (1 + 2 * MARGE)),
+  );
 
   return {
     centreLat,
@@ -64,27 +68,30 @@ export function cadre(points, largeur = 100, hauteur = 100) {
 
 /** Point geographique -> point de dessin, dans le cadre donne. */
 export function projeter(cadreDessin, [lat, lon]) {
-  const x = (lon - cadreDessin.centreLon) * METRES_PAR_DEGRE_LON
-    * cadreDessin.echelle + cadreDessin.largeur / 2;
+  const x =
+    (lon - cadreDessin.centreLon) * METRES_PAR_DEGRE_LON * cadreDessin.echelle +
+    cadreDessin.largeur / 2;
   // L'axe des y descend en SVG : les latitudes croissantes montent.
-  const y = -(lat - cadreDessin.centreLat) * METRES_PAR_DEGRE_LAT
-    * cadreDessin.echelle + cadreDessin.hauteur / 2;
+  const y =
+    -(lat - cadreDessin.centreLat) * METRES_PAR_DEGRE_LAT * cadreDessin.echelle +
+    cadreDessin.hauteur / 2;
   return [arrondir(x), arrondir(y)];
 }
 
 /** Chemin SVG d'une polyligne. */
 export function chemin(cadreDessin, points) {
   if (!points.length) return '';
-  return points.map((point, index) => {
-    const [x, y] = projeter(cadreDessin, point);
-    return `${index === 0 ? 'M' : 'L'}${x} ${y}`;
-  }).join(' ');
+  return points
+    .map((point, index) => {
+      const [x, y] = projeter(cadreDessin, point);
+      return `${index === 0 ? 'M' : 'L'}${x} ${y}`;
+    })
+    .join(' ');
 }
 
 /** Distance en metres entre deux coordonnees, a plat. */
 export function distanceMetres([latA, lonA], [latB, lonB]) {
-  return Math.hypot((latA - latB) * METRES_PAR_DEGRE_LAT,
-    (lonA - lonB) * METRES_PAR_DEGRE_LON);
+  return Math.hypot((latA - latB) * METRES_PAR_DEGRE_LAT, (lonA - lonB) * METRES_PAR_DEGRE_LON);
 }
 
 /**
@@ -95,7 +102,6 @@ export function distanceMetres([latA, lonA], [latB, lonB]) {
  */
 export function surLeTrace(trace, point) {
   let meilleur = null;
-  let parcouru = 0;
   let total = 0;
 
   for (let i = 0; i < trace.length - 1; i += 1) {
@@ -111,7 +117,7 @@ export function surLeTrace(trace, point) {
     total += segment;
   }
   if (meilleur === null) return null;
-  parcouru = total > 0 ? meilleur.avant / total : 0;
+  const parcouru = total > 0 ? meilleur.avant / total : 0;
   return { point: meilleur.point, ecart: meilleur.ecart, avancement: parcouru };
 }
 
@@ -125,12 +131,10 @@ function projeterSurSegment(point, debut, fin) {
   if (dx === 0 && dy === 0) {
     return { ecart: Math.hypot(ax, ay), point: debut, part: 0 };
   }
-  const part = Math.max(0, Math.min(1,
-    -(ax * dx + ay * dy) / (dx * dx + dy * dy)));
+  const part = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy)));
   return {
     ecart: Math.hypot(ax + part * dx, ay + part * dy),
-    point: [debut[0] + (fin[0] - debut[0]) * part,
-      debut[1] + (fin[1] - debut[1]) * part],
+    point: [debut[0] + (fin[0] - debut[0]) * part, debut[1] + (fin[1] - debut[1]) * part],
     part,
   };
 }

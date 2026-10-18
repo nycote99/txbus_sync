@@ -13,7 +13,9 @@ import { describe, it } from 'node:test';
 
 import { enHeure } from '../assets/js/calendrier.js';
 import {
-  etatReservation, evaluateBookingStatus, limiteReservation,
+  etatReservation,
+  evaluateBookingStatus,
+  limiteReservation,
 } from '../assets/js/booking-rules.js';
 
 import { MARDI, lireHoraires } from './aide.js';
@@ -53,8 +55,7 @@ describe('evaluateBookingStatus', () => {
     });
     assert.equal(statut.isBookable, true);
     assert.equal(statut.isUrgent, false);
-    assert.equal(statut.cutoffDate.getTime(),
-      new Date('2026-09-01T19:15:00').getTime());
+    assert.equal(statut.cutoffDate.getTime(), new Date('2026-09-01T19:15:00').getTime());
     assert.equal(statut.remainingSeconds, 75 * 60);
   });
 
@@ -74,8 +75,7 @@ describe('evaluateBookingStatus', () => {
       currentTime: new Date('2026-09-01T19:00:00'),
       terminusClosingTime: new Date('2026-09-01T21:30:00'),
     });
-    assert.equal(statut.cutoffDate.getTime(),
-      new Date('2026-09-01T21:15:00').getTime());
+    assert.equal(statut.cutoffDate.getTime(), new Date('2026-09-01T21:15:00').getTime());
   });
 
   it('fonctionne sans fermeture : le délai seul', () => {
@@ -124,8 +124,7 @@ describe('evaluateBookingStatus', () => {
       currentTime: new Date('2026-09-01T20:00:00'),
       leadTimeMinutes: 60,
     });
-    assert.equal(statut.cutoffDate.getTime(),
-      new Date('2026-09-01T20:45:00').getTime());
+    assert.equal(statut.cutoffDate.getTime(), new Date('2026-09-01T20:45:00').getTime());
   });
 
   it('renvoie un résultat gelé', () => {
