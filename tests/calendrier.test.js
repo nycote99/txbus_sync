@@ -9,10 +9,26 @@ import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
 import {
-  DEBUT_JOUR_SERVICE, dateDepuisNumero, dateLongue, decalerDate, depuisEpoch,
-  depuisISO, enHeure, enISO, enMinutes, feriesDeLAnnee, ferieDuJour, instant,
-  instantDeDepart, instantDepuisEpoch, jourDeSemaine, jourDeServiceActuel,
-  nomDeJour, numeroDeJour, profilDuJour, versEpoch,
+  DEBUT_JOUR_SERVICE,
+  dateDepuisNumero,
+  dateLongue,
+  decalerDate,
+  depuisEpoch,
+  depuisISO,
+  enHeure,
+  enISO,
+  enMinutes,
+  feriesDeLAnnee,
+  ferieDuJour,
+  instant,
+  instantDeDepart,
+  instantDepuisEpoch,
+  jourDeSemaine,
+  jourDeServiceActuel,
+  nomDeJour,
+  numeroDeJour,
+  profilDuJour,
+  versEpoch,
 } from '../assets/js/calendrier.js';
 
 import { lireHoraires } from './aide.js';
@@ -69,8 +85,7 @@ describe('numérotation des jours', () => {
 });
 
 describe('jours fériés retenus par la STC', () => {
-  const cle = (annee, mois, jour) =>
-    feriesDeLAnnee(annee).get(numeroDeJour({ annee, mois, jour }));
+  const cle = (annee, mois, jour) => feriesDeLAnnee(annee).get(numeroDeJour({ annee, mois, jour }));
 
   it('place Pâques sur quatre années de référence', () => {
     assert.equal(cle(2024, 3, 31), 'paques');
@@ -85,8 +100,8 @@ describe('jours fériés retenus par la STC', () => {
   });
 
   it('place les fêtes mobiles', () => {
-    assert.equal(cle(2026, 5, 18), 'patriotes');       // lundi avant le 25 mai
-    assert.equal(cle(2026, 9, 7), 'fete_travail');     // 1er lundi de septembre
+    assert.equal(cle(2026, 5, 18), 'patriotes'); // lundi avant le 25 mai
+    assert.equal(cle(2026, 9, 7), 'fete_travail'); // 1er lundi de septembre
     assert.equal(cle(2026, 10, 12), 'action_de_grace'); // 2e lundi d’octobre
   });
 
@@ -152,14 +167,21 @@ describe('profil de service d’une journée', () => {
   });
 
   it('ferme le terminus les quatre jours prévus', () => {
-    const fermes = [[1, 1], [4, 5], [6, 24], [12, 25]];
+    const fermes = [
+      [1, 1],
+      [4, 5],
+      [6, 24],
+      [12, 25],
+    ];
     for (const [mois, jour] of fermes) {
       const profil = profilDuJour({ annee: 2026, mois, jour }, donnees);
-      assert.equal(profil.terminusOuvert, false,
-        `le terminus devrait être fermé le ${jour}/${mois}`);
+      assert.equal(
+        profil.terminusOuvert,
+        false,
+        `le terminus devrait être fermé le ${jour}/${mois}`,
+      );
     }
-    assert.equal(
-      donnees.feries.filter((f) => !f.terminus_ouvert).length, 4);
+    assert.equal(donnees.feries.filter((f) => !f.terminus_ouvert).length, 4);
   });
 
   it('garde le terminus ouvert les autres jours fériés', () => {
@@ -184,22 +206,21 @@ describe('journée de service', () => {
   });
 
   it('rattache une heure d’avant 3 h à la veille', () => {
-    assert.deepEqual(
-      jourDeServiceActuel({ date: mardi, minutes: enMinutes('01:45') }),
-      { annee: 2026, mois: 8, jour: 31 });
+    assert.deepEqual(jourDeServiceActuel({ date: mardi, minutes: enMinutes('01:45') }), {
+      annee: 2026,
+      mois: 8,
+      jour: 31,
+    });
   });
 
   it('rattache une heure d’après 3 h au jour même', () => {
-    assert.deepEqual(
-      jourDeServiceActuel({ date: mardi, minutes: enMinutes('03:00') }), mardi);
-    assert.deepEqual(
-      jourDeServiceActuel({ date: mardi, minutes: enMinutes('23:59') }), mardi);
+    assert.deepEqual(jourDeServiceActuel({ date: mardi, minutes: enMinutes('03:00') }), mardi);
+    assert.deepEqual(jourDeServiceActuel({ date: mardi, minutes: enMinutes('23:59') }), mardi);
   });
 
   it('reporte au lendemain civil un départ d’après minuit', () => {
     const minuitQuarante = instantDeDepart(mardi, '00:45');
-    assert.equal(minuitQuarante,
-      instant({ annee: 2026, mois: 9, jour: 2 }, enMinutes('00:45')));
+    assert.equal(minuitQuarante, instant({ annee: 2026, mois: 9, jour: 2 }, enMinutes('00:45')));
   });
 
   it('ordonne correctement le premier et le dernier départ d’une journée', () => {
@@ -236,8 +257,10 @@ describe('lecture du temps absolu du flux', () => {
 
   it('place l’horodatage sur la même échelle que l’horaire publié', () => {
     const secondes = Date.UTC(2026, 8, 1, 23, 3) / 1000; // 19:03 heure locale
-    assert.equal(instantDepuisEpoch(secondes),
-      instant({ annee: 2026, mois: 9, jour: 1 }, enMinutes('19:03')));
+    assert.equal(
+      instantDepuisEpoch(secondes),
+      instant({ annee: 2026, mois: 9, jour: 1 }, enMinutes('19:03')),
+    );
   });
 });
 
@@ -264,7 +287,7 @@ describe('dates de l’adresse et du champ de date', () => {
   it('refuse une date qui n’existe pas plutôt que de la décaler', () => {
     assert.equal(depuisISO('2026-02-31'), null);
     assert.equal(depuisISO('2026-13-01'), null);
-    assert.equal(depuisISO('2026-02-29'), null);   // 2026 n’est pas bissextile
+    assert.equal(depuisISO('2026-02-29'), null); // 2026 n’est pas bissextile
     assert.deepEqual(depuisISO('2028-02-29'), { annee: 2028, mois: 2, jour: 29 });
   });
 });
@@ -281,8 +304,12 @@ describe('conversion vers l’instant absolu, pour les rappels', () => {
   });
 
   it('fait l’aller-retour avec la lecture du temps du flux', () => {
-    for (const [mois, jour, heure] of [[1, 15, '07:45'], [6, 30, '23:59'],
-      [11, 2, '00:15'], [3, 20, '16:45']]) {
+    for (const [mois, jour, heure] of [
+      [1, 15, '07:45'],
+      [6, 30, '23:59'],
+      [11, 2, '00:15'],
+      [3, 20, '16:45'],
+    ]) {
       const date = { annee: 2026, mois, jour };
       const epoch = versEpoch(date, enMinutes(heure));
       const relu = depuisEpoch(epoch / 1000);

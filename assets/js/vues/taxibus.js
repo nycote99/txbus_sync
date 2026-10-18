@@ -21,21 +21,23 @@ export function vueTaxibus(contexte) {
     texte: `${zone.nom} — ${zone.municipalites.join(', ')}`,
   }));
 
-  const zoneCourante = donnees.zones.find((z) => z.code === prefs.zoneOrigine)
-    || donnees.zones[0];
+  const zoneCourante = donnees.zones.find((z) => z.code === prefs.zoneOrigine) || donnees.zones[0];
   const service = contexte.profil.service;
   const destinations = destinationsDepuis(donnees, zoneCourante.code, service);
 
-  const choixDestination = [{ valeur: '', texte: 'Toutes les destinations' }]
-    .concat(destinations.map((zone) => ({
+  const choixDestination = [{ valeur: '', texte: 'Toutes les destinations' }].concat(
+    destinations.map((zone) => ({
       valeur: zone.code,
       texte: `${zone.nom} — ${zone.municipalites.join(', ')}`,
-    })));
+    })),
+  );
 
-  const souhaitee = contexte.etatVue.zoneDestination !== undefined
-    ? contexte.etatVue.zoneDestination : prefs.zoneDestination;
-  const destinationValide = souhaitee
-    && destinations.some((z) => z.code === souhaitee) ? souhaitee : '';
+  const souhaitee =
+    contexte.etatVue.zoneDestination !== undefined
+      ? contexte.etatVue.zoneDestination
+      : prefs.zoneDestination;
+  const destinationValide =
+    souhaitee && destinations.some((z) => z.code === souhaitee) ? souhaitee : '';
 
   const departs = departsTaxibus(donnees, {
     origine: zoneCourante.code,
@@ -47,7 +49,8 @@ export function vueTaxibus(contexte) {
     limite: contexte.estAujourdHui ? 20 : 60,
   });
 
-  const selecteurs = h('div.grille-champs',
+  const selecteurs = h(
+    'div.grille-champs',
     champSelect('Zone de départ', zonesOrigine, zoneCourante.code, (valeur) => {
       definir({ zoneOrigine: valeur, zoneDestination: '' });
       rafraichir({ zoneDestination: '' });
@@ -56,32 +59,50 @@ export function vueTaxibus(contexte) {
       definir({ zoneDestination: valeur });
       rafraichir({ zoneDestination: valeur });
     }),
-    controleDate(contexte));
+    controleDate(contexte),
+  );
 
   const liste = departs.length
-    ? h('ul.passages', departs.map((depart) =>
-        h('li', ligneDepart(depart, maintenantInstant, donnees))))
+    ? h(
+        'ul.passages',
+        departs.map((depart) => h('li', ligneDepart(depart, maintenantInstant))),
+      )
     : messageVide('Aucun départ correspondant dans les prochains jours.');
 
-  return h('div.pile',
-    carte('Planifier un déplacement en taxibus', h('div.pile.pile--serre',
-      selecteurs,
-      h('p.note', zoneCourante.arrets
-        ? `Codes d’arrêts de la zone : ${zoneCourante.arrets}.` : null),
-      h('a.bouton.bouton--principal.bouton--pleine', {
-        href: donnees.liens.reservation, target: '_blank', rel: 'noopener',
-      }, 'Réserver sur le portail de la STC'))),
+  return h(
+    'div.pile',
+    carte(
+      'Planifier un déplacement en taxibus',
+      h(
+        'div.pile.pile--serre',
+        selecteurs,
+        h(
+          'p.note',
+          zoneCourante.arrets ? `Codes d’arrêts de la zone : ${zoneCourante.arrets}.` : null,
+        ),
+        h(
+          'a.bouton.bouton--principal.bouton--pleine',
+          {
+            href: donnees.liens.reservation,
+            target: '_blank',
+            rel: 'noopener',
+          },
+          'Réserver sur le portail de la STC',
+        ),
+      ),
+    ),
 
     carte(`Départs (${departs.length})`, liste, { plat: departs.length > 0 }),
 
-    carte('Règles de réservation', reglesReservation(donnees)));
+    carte('Règles de réservation', reglesReservation(donnees)),
+  );
 }
 
 /**
  * Un depart, avec son etat de reservation. La jauge represente le temps qu'il
  * reste avant la fermeture de la reservation, sur une fenetre de deux heures.
  */
-export function ligneDepart(depart, maintenantInstant, donnees) {
+export function ligneDepart(depart, maintenantInstant) {
   const { etat, motif } = depart;
   const couleur = { ouvert: 'ok', bientot: 'alerte', ferme: 'arret' }[etat.code];
   const heureLimite = enHeure(depart.limite);
@@ -91,31 +112,46 @@ export function ligneDepart(depart, maintenantInstant, donnees) {
   const montrerJauge = etat.code !== 'ferme' && etat.restant <= FENETRE;
   const part = Math.max(0, Math.min(1, etat.restant / FENETRE));
 
-  const explication = motif === 'fermeture_terminus'
-    ? `avant la fermeture du terminus (${heureLimite})`
-    : `jusqu’à ${heureLimite}`;
+  const explication =
+    motif === 'fermeture_terminus'
+      ? `avant la fermeture du terminus (${heureLimite})`
+      : `jusqu’à ${heureLimite}`;
 
-  return h(`div.depart${etat.code === 'ferme' ? '.depart--ferme' : ''}`,
+  return h(
+    `div.depart${etat.code === 'ferme' ? '.depart--ferme' : ''}`,
     h('span.passage__heure', depart.heure),
-    h('span.passage__detail',
-      h('span.passage__titre',
+    h(
+      'span.passage__detail',
+      h(
+        'span.passage__titre',
         h(`span.pastille.pastille--${couleur}`, etat.libelle),
-        depart.dansMinutes > 0 ? `départ dans ${delai(depart.dansMinutes)}`
-          : 'départ imminent'),
-      h('span.depart__limite', 'Réservation ', explication,
-        estAutreJour(depart, maintenantInstant)
-          ? ` · ${dateLongue(depart.jour)}` : '')),
-    h('span.depart__compte',
+        depart.dansMinutes > 0 ? `départ dans ${delai(depart.dansMinutes)}` : 'départ imminent',
+      ),
+      h(
+        'span.depart__limite',
+        'Réservation ',
+        explication,
+        estAutreJour(depart, maintenantInstant) ? ` · ${dateLongue(depart.jour)}` : '',
+      ),
+    ),
+    h(
+      'span.depart__compte',
       etat.code === 'ferme' ? '—' : delai(etat.restant),
-      h('small', etat.code === 'ferme' ? 'trop tard' : 'pour réserver')),
+      h('small', etat.code === 'ferme' ? 'trop tard' : 'pour réserver'),
+    ),
     montrerJauge
-      ? h('span.jauge', {
-          role: 'img',
-          'aria-label': `Il reste ${delai(etat.restant)} pour réserver`,
-        }, h('span', {
-          style: `width:${(part * 100).toFixed(1)}%;background:var(--${couleur})`,
-        }))
-      : null);
+      ? h(
+          'span.jauge',
+          {
+            role: 'img',
+            'aria-label': `Il reste ${delai(etat.restant)} pour réserver`,
+          },
+          h('span', {
+            style: `width:${(part * 100).toFixed(1)}%;background:var(--${couleur})`,
+          }),
+        )
+      : null,
+  );
 }
 
 function estAutreJour(depart, maintenantInstant) {
@@ -124,22 +160,30 @@ function estAutreJour(depart, maintenantInstant) {
 
 function reglesReservation(donnees) {
   const r = donnees.regles;
-  return h('div.pile.pile--serre',
-    h('dl.liste-definitions',
-      definition('Réservation au plus tard',
-        `${r.reservation_minutes_avant} min avant le départ`),
-      definition('Annulation sans frais',
-        `${r.annulation_minutes_avant} min avant le départ`),
-      definition('Réservation à l’avance',
-        `${r.reservation_max_en_ligne_jours} jours en ligne, `
-        + `${r.reservation_max_telephone_jours} jours par téléphone`),
-      definition('Présence à l’arrêt',
-        `${r.presence_minutes_avant} min avant l’heure du départ`),
-      definition('Fenêtre d’embarquement',
-        `jusqu’à ${r.fenetre_embarquement_minutes} min après l’heure du départ`)),
+  return h(
+    'div.pile.pile--serre',
+    h(
+      'dl.liste-definitions',
+      definition('Réservation au plus tard', `${r.reservation_minutes_avant} min avant le départ`),
+      definition('Annulation sans frais', `${r.annulation_minutes_avant} min avant le départ`),
+      definition(
+        'Réservation à l’avance',
+        `${r.reservation_max_en_ligne_jours} jours en ligne, ` +
+          `${r.reservation_max_telephone_jours} jours par téléphone`,
+      ),
+      definition('Présence à l’arrêt', `${r.presence_minutes_avant} min avant l’heure du départ`),
+      definition(
+        'Fenêtre d’embarquement',
+        `jusqu’à ${r.fenetre_embarquement_minutes} min après l’heure du départ`,
+      ),
+    ),
     h('p.note', r.note_soiree),
-    h('p.note', 'Une absence à un départ réservé entraîne une pénalité selon la '
-      + 'zone. La carte d’accès est obligatoire à l’embarquement.'));
+    h(
+      'p.note',
+      'Une absence à un départ réservé entraîne une pénalité selon la ' +
+        'zone. La carte d’accès est obligatoire à l’embarquement.',
+    ),
+  );
 }
 
 function definition(terme, valeur) {

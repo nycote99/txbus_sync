@@ -9,7 +9,12 @@
 
 import { h } from '../dom.js';
 import {
-  dateLongue, decalerDate, depuisISO, enISO, jourDeServiceActuel, maintenant,
+  dateLongue,
+  decalerDate,
+  depuisISO,
+  enISO,
+  jourDeServiceActuel,
+  maintenant,
 } from '../calendrier.js';
 
 /** Fenêtre de réservation en ligne offerte par la STC, en jours. */
@@ -34,13 +39,19 @@ export function controleDate(contexte) {
 
   const estAujourdHui = enISO(jourDeService) === enISO(aujourdHui);
 
-  return h('label.champ',
+  return h(
+    'label.champ',
     h('span', 'Quel jour'),
     champ,
     estAujourdHui
       ? h('span.note', 'aujourd’hui')
-      : h('button.lien-discret', {
-          type: 'button',
-          onclick: () => rafraichir({ jour: null }),
-        }, `${dateLongue(jourDeService)} · revenir à aujourd’hui`));
+      : h(
+          'button.lien-discret',
+          {
+            type: 'button',
+            onclick: () => rafraichir({ jour: null }),
+          },
+          `${dateLongue(jourDeService)} · revenir à aujourd’hui`,
+        ),
+  );
 }

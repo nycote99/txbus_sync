@@ -10,8 +10,13 @@ import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
 import {
-  MEME_ENDROIT, arretsProches, arretsSitues, distanceLisible, distanceMetres,
-  localiser, motifDeRefus,
+  MEME_ENDROIT,
+  arretsProches,
+  arretsSitues,
+  distanceLisible,
+  distanceMetres,
+  localiser,
+  motifDeRefus,
 } from '../assets/js/proximite.js';
 
 import { lireHoraires, lireReseauGtfs } from './aide.js';
@@ -36,8 +41,7 @@ describe('distance', () => {
   it('est symétrique', () => {
     const a = { lat: 46.02, lon: -73.11 };
     const b = { lat: 46.05, lon: -73.15 };
-    assert.equal(Math.round(distanceMetres(a, b)),
-      Math.round(distanceMetres(b, a)));
+    assert.equal(Math.round(distanceMetres(a, b)), Math.round(distanceMetres(b, a)));
   });
 
   it('s’écrit en mètres puis en kilomètres', () => {
@@ -85,25 +89,32 @@ describe('arrêts proches', () => {
     const noms = proches.map((arret) => arret.nom);
     assert.equal(new Set(noms).size, noms.length);
     // Et l'entrée conservée connaît bien les deux sens.
-    const intersection = proches
-      .find((arret) => arret.nom === 'Marie-Victorin / Rivard');
+    const intersection = proches.find((arret) => arret.nom === 'Marie-Victorin / Rivard');
     assert.ok(intersection);
-    assert.deepEqual([...intersection.directions].sort(),
-      ['cegep', 'terminus']);
+    assert.deepEqual([...intersection.directions].sort(), ['cegep', 'terminus']);
   });
 
   it('fond en une seule entrée les deux trottoirs d’un même coin de rue', () => {
     // « Du Roi / Charlotte » et « Charlotte / Du Roi » : dix mètres d'écart,
     // deux noms, un seul endroit. Position relevée devant l'Hôtel-Dieu.
-    const proches = arretsProches(donnees, reference,
-      { lat: 46.0416, lon: -73.1155 }, { limite: 3 });
+    const proches = arretsProches(
+      donnees,
+      reference,
+      { lat: 46.0416, lon: -73.1155 },
+      { limite: 3 },
+    );
     const COIN = ['Du Roi / Charlotte', 'Charlotte / Du Roi'];
     const noms = proches.map((arret) => arret.nom);
-    assert.equal(noms.filter((nom) => COIN.includes(nom)).length, 1,
-      `deux fois le même coin de rue : ${noms.join(', ')}`);
+    assert.equal(
+      noms.filter((nom) => COIN.includes(nom)).length,
+      1,
+      `deux fois le même coin de rue : ${noms.join(', ')}`,
+    );
     const coin = proches.find((arret) => COIN.includes(arret.nom));
-    assert.deepEqual(coin.autresNoms,
-      COIN.filter((nom) => nom !== coin.nom));
+    assert.deepEqual(
+      coin.autresNoms,
+      COIN.filter((nom) => nom !== coin.nom),
+    );
   });
 
   it('ne fond pas deux arrêts réellement distincts', () => {
@@ -113,15 +124,16 @@ describe('arrêts proches', () => {
     const proches = arretsProches(donnees, reference, TERMINUS, { limite: 60 });
     for (let i = 0; i < proches.length; i += 1) {
       for (let j = i + 1; j < proches.length; j += 1) {
-        assert.ok(distanceMetres(proches[i], proches[j]) > MEME_ENDROIT,
-          `${proches[i].nom} et ${proches[j].nom} sont le même endroit`);
+        assert.ok(
+          distanceMetres(proches[i], proches[j]) > MEME_ENDROIT,
+          `${proches[i].nom} et ${proches[j].nom} sont le même endroit`,
+        );
       }
     }
   });
 
   it('sait se limiter à une ligne', () => {
-    const proches = arretsProches(donnees, reference, TERMINUS,
-      { limite: 40, ligne: 'express' });
+    const proches = arretsProches(donnees, reference, TERMINUS, { limite: 40, ligne: 'express' });
     assert.ok(proches.length > 0);
     for (const arret of proches) assert.ok(arret.lignes.includes('express'));
   });
@@ -129,10 +141,8 @@ describe('arrêts proches', () => {
   it('ne rend rien hors du rayon demandé', () => {
     // Montréal : à plus de soixante kilomètres du réseau.
     const ailleurs = { lat: 45.5017, lon: -73.5673 };
-    assert.deepEqual(
-      arretsProches(donnees, reference, ailleurs, { rayon: 2000 }), []);
-    assert.ok(arretsProches(donnees, reference, ailleurs, { limite: 1 })
-      .length === 1);
+    assert.deepEqual(arretsProches(donnees, reference, ailleurs, { rayon: 2000 }), []);
+    assert.ok(arretsProches(donnees, reference, ailleurs, { limite: 1 }).length === 1);
   });
 });
 
@@ -140,9 +150,10 @@ describe('géolocalisation', () => {
   it('rend la position quand le navigateur l’accorde', async () => {
     const resultat = await localiser({
       geolocalisation: {
-        getCurrentPosition: (succes) => succes({
-          coords: { latitude: 46.02, longitude: -73.11, accuracy: 18 },
-        }),
+        getCurrentPosition: (succes) =>
+          succes({
+            coords: { latitude: 46.02, longitude: -73.11, accuracy: 18 },
+          }),
       },
     });
     assert.equal(resultat.erreur, undefined);

@@ -8,7 +8,13 @@ import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
 
 import {
-  cadre, chemin, couper, distanceMetres, projeter, surLeTrace, traceDeDirection,
+  cadre,
+  chemin,
+  couper,
+  distanceMetres,
+  projeter,
+  surLeTrace,
+  traceDeDirection,
 } from '../assets/js/plan.js';
 
 import { lireReseauGtfs } from './aide.js';
@@ -40,17 +46,23 @@ describe('cadre', () => {
   it('garde les proportions du terrain', () => {
     // Un corridor deux fois plus long que large doit occuper deux fois plus de
     // place en largeur qu'en hauteur — et non remplir le cadre.
-    const points = [[46.0, -73.1], [46.0, -73.0], [46.01, -73.0]];
+    const points = [
+      [46.0, -73.1],
+      [46.0, -73.0],
+      [46.01, -73.0],
+    ];
     const boite = cadre(points, 100, 100);
     const [gauche] = projeter(boite, [46.0, -73.1]);
     const [droite] = projeter(boite, [46.0, -73.0]);
     const [, haut] = projeter(boite, [46.01, -73.0]);
     const [, bas] = projeter(boite, [46.0, -73.0]);
     const rapportDessin = (droite - gauche) / (bas - haut);
-    const rapportTerrain = distanceMetres([46.0, -73.1], [46.0, -73.0])
-      / distanceMetres([46.01, -73.0], [46.0, -73.0]);
-    assert.ok(Math.abs(rapportDessin - rapportTerrain) / rapportTerrain < 0.01,
-      `dessin ${rapportDessin.toFixed(2)} contre terrain ${rapportTerrain.toFixed(2)}`);
+    const rapportTerrain =
+      distanceMetres([46.0, -73.1], [46.0, -73.0]) / distanceMetres([46.01, -73.0], [46.0, -73.0]);
+    assert.ok(
+      Math.abs(rapportDessin - rapportTerrain) / rapportTerrain < 0.01,
+      `dessin ${rapportDessin.toFixed(2)} contre terrain ${rapportTerrain.toFixed(2)}`,
+    );
   });
 
   it('tient tout le tracé dans le cadre, marge comprise', () => {
@@ -63,13 +75,27 @@ describe('cadre', () => {
   });
 
   it('centre ce qu’il dessine', () => {
-    const boite = cadre([[46, -73.1], [46.02, -73.0]], 100, 100);
+    const boite = cadre(
+      [
+        [46, -73.1],
+        [46.02, -73.0],
+      ],
+      100,
+      100,
+    );
     const [x, y] = projeter(boite, [46.01, -73.05]);
     assert.ok(Math.abs(x - 50) < 0.5 && Math.abs(y - 50) < 0.5, `${x},${y}`);
   });
 
   it('met le nord en haut', () => {
-    const boite = cadre([[46, -73.1], [46.02, -73.0]], 100, 100);
+    const boite = cadre(
+      [
+        [46, -73.1],
+        [46.02, -73.0],
+      ],
+      100,
+      100,
+    );
     const [, nord] = projeter(boite, [46.02, -73.05]);
     const [, sud] = projeter(boite, [46.0, -73.05]);
     assert.ok(nord < sud, 'la latitude croissante devrait monter');
@@ -78,8 +104,18 @@ describe('cadre', () => {
 
 describe('chemin SVG', () => {
   it('commence par un déplacement et enchaîne des lignes', () => {
-    const boite = cadre([[46, -73], [46.01, -73.01]], 100, 100);
-    const trait = chemin(boite, [[46, -73], [46.01, -73.01]]);
+    const boite = cadre(
+      [
+        [46, -73],
+        [46.01, -73.01],
+      ],
+      100,
+      100,
+    );
+    const trait = chemin(boite, [
+      [46, -73],
+      [46.01, -73.01],
+    ]);
     assert.match(trait, /^M[\d.-]+ [\d.-]+ L[\d.-]+ [\d.-]+$/);
   });
 
@@ -90,11 +126,17 @@ describe('chemin SVG', () => {
 
 describe('tracés embarqués', () => {
   it('couvre les quatre directions', () => {
-    for (const [ligne, direction] of [['ligne10', 'cegep'],
-      ['ligne10', 'terminus'], ['express', 'longueuil'], ['express', 'sorel']]) {
+    for (const [ligne, direction] of [
+      ['ligne10', 'cegep'],
+      ['ligne10', 'terminus'],
+      ['express', 'longueuil'],
+      ['express', 'sorel'],
+    ]) {
       const trace = traceDeDirection(reference, ligne, direction);
-      assert.ok(trace && trace.length > 20,
-        `${ligne}/${direction} : ${trace ? trace.length : 'absent'} points`);
+      assert.ok(
+        trace && trace.length > 20,
+        `${ligne}/${direction} : ${trace ? trace.length : 'absent'} points`,
+      );
     }
   });
 
@@ -107,13 +149,11 @@ describe('tracés embarqués', () => {
     // La simplification est réglée à dix mètres ; un arrêt qui s'en écarterait
     // beaucoup signalerait un tracé qui n'est pas celui de la ligne.
     const trace = traceDeDirection(reference, 'ligne10', 'cegep');
-    const arrets = Object.values(reference.arrets)
-      .map((arret) => [arret.lat, arret.lon]);
+    const arrets = Object.values(reference.arrets).map((arret) => [arret.lat, arret.lon]);
     const desservis = arrets
       .map((arret) => ({ arret, proche: surLeTrace(trace, arret) }))
       .filter(({ proche }) => proche.ecart < 30);
-    assert.ok(desservis.length >= 40,
-      `${desservis.length} arrêts à moins de 30 m du tracé`);
+    assert.ok(desservis.length >= 40, `${desservis.length} arrêts à moins de 30 m du tracé`);
   });
 });
 
@@ -135,8 +175,7 @@ describe('placement sur le tracé', () => {
 
   it('progresse le long du tracé', () => {
     const tiers = surLeTrace(trace, trace[Math.floor(trace.length / 3)]);
-    const deuxTiers = surLeTrace(trace,
-      trace[Math.floor((2 * trace.length) / 3)]);
+    const deuxTiers = surLeTrace(trace, trace[Math.floor((2 * trace.length) / 3)]);
     assert.ok(tiers.avancement < deuxTiers.avancement);
   });
 
@@ -157,11 +196,13 @@ describe('coupe du tracé', () => {
 
   it('sépare le parcouru du reste sans perdre de longueur', () => {
     const { parcouru, reste } = couper(trace, 0.4);
-    const longueur = (points) => points.slice(1)
-      .reduce((somme, point, i) => somme + distanceMetres(points[i], point), 0);
+    const longueur = (points) =>
+      points.slice(1).reduce((somme, point, i) => somme + distanceMetres(points[i], point), 0);
     const entier = longueur(trace);
-    assert.ok(Math.abs(longueur(parcouru) + longueur(reste) - entier) < 1,
-      'les deux morceaux devraient totaliser le tracé');
+    assert.ok(
+      Math.abs(longueur(parcouru) + longueur(reste) - entier) < 1,
+      'les deux morceaux devraient totaliser le tracé',
+    );
     assert.ok(Math.abs(longueur(parcouru) / entier - 0.4) < 0.001);
   });
 
@@ -185,7 +226,6 @@ describe('coupe du tracé', () => {
 
   it('ne casse pas sur un tracé trop court pour être coupé', () => {
     assert.deepEqual(couper([], 0.5), { parcouru: [], reste: [] });
-    assert.deepEqual(couper([TERMINUS], 0.5),
-      { parcouru: [], reste: [TERMINUS] });
+    assert.deepEqual(couper([TERMINUS], 0.5), { parcouru: [], reste: [TERMINUS] });
   });
 });

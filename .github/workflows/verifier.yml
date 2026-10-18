@@ -41,3 +41,42 @@ jobs:
 
       - name: Vérifier la table de référence GTFS
         run: python3 tools/verifier_gtfs.py
+
+  statique:
+    name: Analyse statique JavaScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Installer les outils de développement
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier (formatage homogène)
+        run: npm run format:check
+
+      - name: TypeScript en mode checkJs (annotations JSDoc)
+        run: npm run typecheck
+
+  python:
+    name: Analyse statique Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer Ruff
+        run: pip install ruff
+
+      - name: Ruff sur les outils
+        run: ruff check tools/

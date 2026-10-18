@@ -1,0 +1,25 @@
+name: Lighthouse
+
+# Audit de performance, d'accessibilité et de PWA sur le site tel qu'il est
+# servi : le dépôt lui-même, sans étape de compilation. L'accessibilité est
+# bloquante (c'est une promesse du projet) ; le reste avertit.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Audit Lighthouse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: './lighthouserc.json'
+          uploadArtifacts: true

@@ -4,12 +4,14 @@
  */
 
 import {
-  decalerDate, enHeure, enMinutes, instant, instantDeDepart,
-  instantDepuisEpoch, profilDuJour,
+  decalerDate,
+  enHeure,
+  enMinutes,
+  instantDeDepart,
+  instantDepuisEpoch,
+  profilDuJour,
 } from './calendrier.js';
-import {
-  previsionDuVoyageA, vehiculeDuVoyage, voyageAnnule,
-} from './tempsreel.js';
+import { previsionDuVoyageA, vehiculeDuVoyage, voyageAnnule } from './tempsreel.js';
 
 export const LIGNES = {
   ligne10: {
@@ -105,8 +107,14 @@ export function arretsDeLigne(donnees, ligne) {
  * suivants, ce qui couvre naturellement la fin de soiree et les jours feries.
  */
 export function prochainsPassages(donnees, options) {
-  const { ligne, arret, maintenant: instantCourant, jourDeService, limite = 6,
-          directions } = options;
+  const {
+    ligne,
+    arret,
+    maintenant: instantCourant,
+    jourDeService,
+    limite = 6,
+    directions,
+  } = options;
   const resultat = [];
 
   for (let decalage = 0; decalage < 4 && resultat.length < limite; decalage += 1) {
@@ -128,8 +136,7 @@ export function prochainsPassages(donnees, options) {
     });
   }
 
-  return resultat.sort((a, b) => a.passage.instant - b.passage.instant)
-    .slice(0, limite);
+  return resultat.sort((a, b) => a.passage.instant - b.passage.instant).slice(0, limite);
 }
 
 /**
@@ -140,8 +147,7 @@ export function passageReel(etat, voyage, passage) {
   const vehicule = vehiculeDuVoyage(etat, voyage);
   const prevision = previsionDuVoyageA(etat, voyage, passage);
   if (!prevision || prevision.heure === undefined) {
-    return { instant: passage.instant, heure: passage.heure, direct: false,
-             vehicule };
+    return { instant: passage.instant, heure: passage.heure, direct: false, vehicule };
   }
   const instantPrevu = instantDepuisEpoch(prevision.heure);
   return {
@@ -202,8 +208,7 @@ export function position(voyage, instantCourant) {
  * reellement en service, ce qu'un horaire ne peut pas savoir. Sinon on retombe
  * sur les voyages que l'horaire situe en cours.
  */
-export function vehiculesEnCirculation(donnees, jourDeService, instantCourant,
-                                       etatTempsReel) {
+export function vehiculesEnCirculation(donnees, jourDeService, instantCourant, etatTempsReel) {
   const profil = profilDuJour(jourDeService, donnees);
   const tous = [];
   Object.keys(LIGNES).forEach((ligne) => {
@@ -215,14 +220,16 @@ export function vehiculesEnCirculation(donnees, jourDeService, instantCourant,
   if (etatTempsReel && etatTempsReel.vehicules.length) {
     const enService = [];
     etatTempsReel.vehicules.forEach((vehicule) => {
-      const voyage = tous.find((candidat) => candidat.ligne === vehicule.ligne
-        && candidat.direction === vehicule.direction
-        && candidat.depart.heure === vehicule.depart);
+      const voyage = tous.find(
+        (candidat) =>
+          candidat.ligne === vehicule.ligne &&
+          candidat.direction === vehicule.direction &&
+          candidat.depart.heure === vehicule.depart,
+      );
       if (voyage) enService.push({ voyage, vehicule });
     });
     if (enService.length) {
-      return enService.sort((a, b) =>
-        a.voyage.depart.instant - b.voyage.depart.instant);
+      return enService.sort((a, b) => a.voyage.depart.instant - b.voyage.depart.instant);
     }
   }
 
@@ -237,73 +244,29 @@ export function vehiculesEnCirculation(donnees, jourDeService, instantCourant,
 
 /** Groupes de departs dont la zone d'origine et la destination correspondent. */
 export function groupesTaxibus(donnees, origine, destination, service) {
-  return donnees.taxibus.filter((groupe) => groupe.service === service
-    && groupe.origines.includes(origine)
-    && (!destination || groupe.destinations.includes(destination)));
+  return donnees.taxibus.filter(
+    (groupe) =>
+      groupe.service === service &&
+      groupe.origines.includes(origine) &&
+      (!destination || groupe.destinations.includes(destination)),
+  );
 }
 
 /** Toutes les destinations desservies depuis une zone, un jour donne. */
 export function destinationsDepuis(donnees, origine, service) {
   const codes = new Set();
-  groupesTaxibus(donnees, origine, null, service)
-    .forEach((groupe) => groupe.destinations.forEach((code) => codes.add(code)));
+  groupesTaxibus(donnees, origine, null, service).forEach((groupe) =>
+    groupe.destinations.forEach((code) => codes.add(code)),
+  );
   return donnees.zones.filter((zone) => codes.has(zone.code));
 }
 
-/**
- * Heure limite pour reserver un depart de taxibus.
- *
- * Deux regles officielles se cumulent :
- *   1. reservation possible jusqu'a 30 minutes avant le depart ;
- *   2. pour les departs qui ont lieu alors que le Terminus des Promenades est
- *      ferme — soiree tardive, nuit, et debut de matinee du lendemain — la
- *      reservation doit etre faite avant sa fermeture.
- * La plus contraignante des deux l'emporte.
- */
-export function limiteReservation(donnees, jourDeService, heure) {
-  const instantDepart = instantDeDepart(jourDeService, heure);
-  const delai = donnees.regles.reservation_minutes_avant;
-  let limite = instantDepart - delai;
-  let motif = 'delai';
+/** Les regles de reservation vivent dans booking-rules.js, module pur
+ * dedie : reseau.js les importe pour son propre usage et les reexporte
+ * pour ses consommateurs historiques. */
+import { etatReservation, limiteReservation } from './booking-rules.js';
 
-  const profil = profilDuJour(jourDeService, donnees);
-  const ouvertPendantLeDepart = profil.terminusOuvert
-    && instantDepart >= instant(jourDeService, profil.ouverture)
-    && instantDepart <= instant(jourDeService, profil.fermeture);
-
-  if (!ouvertPendantLeDepart) {
-    const fermeture = derniereFermeture(donnees, jourDeService, instantDepart);
-    if (fermeture !== null && fermeture < limite) {
-      limite = fermeture;
-      motif = 'fermeture_terminus';
-    }
-  }
-  return { instantDepart, limite, motif };
-}
-
-/** Derniere fermeture du terminus qui precede l'instant vise. */
-function derniereFermeture(donnees, jourDeService, instantVise) {
-  for (let recul = 0; recul < 14; recul += 1) {
-    const jour = decalerDate(jourDeService, -recul);
-    const profil = profilDuJour(jour, donnees);
-    if (!profil.terminusOuvert) continue;
-    const fermeture = instant(jour, profil.fermeture);
-    if (fermeture <= instantVise) return fermeture;
-  }
-  return null;
-}
-
-/** Etat d'un depart taxibus par rapport a son heure limite de reservation. */
-export function etatReservation(limite, instantCourant, seuilAlerte = 60) {
-  const restant = limite.limite - instantCourant;
-  if (restant <= 0) {
-    return { code: 'ferme', restant, libelle: 'Réservation fermée' };
-  }
-  if (restant <= seuilAlerte) {
-    return { code: 'bientot', restant, libelle: 'Dernière chance' };
-  }
-  return { code: 'ouvert', restant, libelle: 'Réservable' };
-}
+export { etatReservation, limiteReservation };
 
 /**
  * Departs de taxibus, avec leur heure limite de reservation.
@@ -314,8 +277,14 @@ export function etatReservation(limite, instantCourant, seuilAlerte = 60) {
  * l'arrivee de l'autobus, mais la reservation, elle, se joue tout de suite.
  */
 export function departsTaxibus(donnees, options) {
-  const { origine, destination, maintenant: instantCourant, jourDeService,
-          limite = 12, inclurePasses = false } = options;
+  const {
+    origine,
+    destination,
+    maintenant: instantCourant,
+    jourDeService,
+    limite = 12,
+    inclurePasses = false,
+  } = options;
   const depuis = options.depuis === undefined ? instantCourant : options.depuis;
   const resultat = [];
 
@@ -323,8 +292,9 @@ export function departsTaxibus(donnees, options) {
     const jour = decalerDate(jourDeService, decalage);
     const profil = profilDuJour(jour, donnees);
     const heures = new Set();
-    groupesTaxibus(donnees, origine, destination, profil.service)
-      .forEach((groupe) => groupe.heures.forEach((h) => heures.add(h)));
+    groupesTaxibus(donnees, origine, destination, profil.service).forEach((groupe) =>
+      groupe.heures.forEach((h) => heures.add(h)),
+    );
 
     [...heures].forEach((heure) => {
       const info = limiteReservation(donnees, jour, heure);
@@ -341,8 +311,7 @@ export function departsTaxibus(donnees, options) {
     });
   }
 
-  return resultat.sort((a, b) => a.instantDepart - b.instantDepart)
-    .slice(0, limite);
+  return resultat.sort((a, b) => a.instantDepart - b.instantDepart).slice(0, limite);
 }
 
 /**
@@ -396,10 +365,10 @@ export function passagesLigne10(donnees, arret, jourDeService) {
  * mediane. Les deux qui n'en ont pas sont ceux de la nuit — precisement ceux
  * dont le taxibus devait etre reserve avant la fermeture du terminus.
  */
-export function correspondanceLigne10(passages, arriveeInstant,
-                                      correspondance = 5) {
-  const suivant = passages
-    .find((entree) => entree.passage.instant >= arriveeInstant + correspondance);
+export function correspondanceLigne10(passages, arriveeInstant, correspondance = 5) {
+  const suivant = passages.find(
+    (entree) => entree.passage.instant >= arriveeInstant + correspondance,
+  );
   if (!suivant) return null;
   // Au-dela, ce n'est plus une correspondance mais le premier autobus du
   // lendemain : sur ce reseau les vraies attentes vont de 6 a 37 minutes, et
@@ -419,9 +388,17 @@ export function correspondanceLigne10(passages, arriveeInstant,
 
 export function retoursAvecTaxibus(donnees, options) {
   const {
-    ligne = 'express', direction = 'sorel', embarquement, descente,
-    zoneDestination = null, jourDeService, maintenant: instantCourant,
-    tempsReel = null, correspondance = 5, limite = 12, aPartirDe = null,
+    ligne = 'express',
+    direction = 'sorel',
+    embarquement,
+    descente,
+    zoneDestination = null,
+    jourDeService,
+    maintenant: instantCourant,
+    tempsReel = null,
+    correspondance = 5,
+    limite = 12,
+    aPartirDe = null,
   } = options;
 
   const profil = profilDuJour(jourDeService, donnees);
@@ -440,20 +417,24 @@ export function retoursAvecTaxibus(donnees, options) {
     const arriveeReelle = passageReel(tempsReel, voyage, arrivee);
     const annule = voyageAnnule(tempsReel, voyage);
 
-    const chercher = (depuis) => (zone ? departsTaxibus(donnees, {
-      origine: zone,
-      destination: zoneDestination,
-      maintenant: instantCourant,
-      depuis: depuis + correspondance,
-      jourDeService,
-      limite: 1,
-    })[0] || null : null);
+    const chercher = (depuis) =>
+      zone
+        ? departsTaxibus(donnees, {
+            origine: zone,
+            destination: zoneDestination,
+            maintenant: instantCourant,
+            depuis: depuis + correspondance,
+            jourDeService,
+            limite: 1,
+          })[0] || null
+        : null;
 
     // Le taxibus que l'horaire promettait, et celui qu'on attrapera vraiment.
     const taxibusPrevu = chercher(arrivee.instant);
-    const taxibus = arriveeReelle.direct
-      && arriveeReelle.instant !== arrivee.instant
-      ? chercher(arriveeReelle.instant) : taxibusPrevu;
+    const taxibus =
+      arriveeReelle.direct && arriveeReelle.instant !== arrivee.instant
+        ? chercher(arriveeReelle.instant)
+        : taxibusPrevu;
 
     const marge = taxibus ? taxibus.instantDepart - arriveeReelle.instant : null;
 
@@ -469,17 +450,18 @@ export function retoursAvecTaxibus(donnees, options) {
       taxibus,
       taxibusPrevu,
       // L'autre prolongement possible, celui qui ne se reserve pas.
-      ligne10: correspondanceLigne10(passagesL10, arriveeReelle.instant,
-        correspondance),
+      ligne10: correspondanceLigne10(passagesL10, arriveeReelle.instant, correspondance),
       attente: marge,
       marge,
       // Le retard a fait glisser la correspondance sur un départ ultérieur.
-      correspondancePerdue: Boolean(taxibus && taxibusPrevu
-        && taxibus.instantDepart !== taxibusPrevu.instantDepart),
+      correspondancePerdue: Boolean(
+        taxibus && taxibusPrevu && taxibus.instantDepart !== taxibusPrevu.instantDepart,
+      ),
       jeu: marge === null ? null : marge - correspondance,
       // Jeu si court qu'un retard ordinaire ferait perdre le taxibus.
       margeServree: marge !== null && marge - correspondance <= JEU_SERRE,
-      verdict: annule ? { code: 'annule' }
+      verdict: annule
+        ? { code: 'annule' }
         : verdictDeReservation(taxibus, departReel, arriveeReelle),
     });
     if (resultat.length >= limite) break;

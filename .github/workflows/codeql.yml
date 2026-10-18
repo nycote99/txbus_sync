@@ -1,0 +1,34 @@
+name: CodeQL
+
+# Analyse statique de sécurité sur les deux langages du dépôt. Le périmètre
+# sensible est connu : des textes venus du flux GTFS-RT finissent dans le DOM.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 12 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyser:
+    name: Analyser (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript-typescript', 'python']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'

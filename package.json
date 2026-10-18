@@ -2,9 +2,21 @@
   "name": "sorel-transit",
   "private": true,
   "type": "module",
-  "description": "Déclare les fichiers .js du dépôt comme modules ES, pour que node --test puisse les charger tels que le navigateur les charge. Aucune dépendance : l'application reste servie telle quelle.",
+  "description": "Déclare les fichiers .js du dépôt comme modules ES, pour que node --test puisse les charger tels que le navigateur les charge. Aucune dépendance à l'exécution : ces paquets sont des outils de développement, l'application reste servie telle quelle.",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "verifier": "python3 tools/verifier_donnees.py && python3 tools/verifier_gtfs.py && python3 tools/verifier_service_worker.py"
+    "verifier": "python3 tools/verifier_donnees.py && python3 tools/verifier_gtfs.py && python3 tools/verifier_service_worker.py",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.5",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2"
   }
 }

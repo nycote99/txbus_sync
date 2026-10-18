@@ -63,7 +63,7 @@ def lignes_de_mots(page):
     for ligne in lignes:
         ligne["mots"].sort(key=lambda m: m["x0"])
         ligne["texte"] = " ".join(m["text"] for m in ligne["mots"])
-    lignes.sort(key=lambda l: l["centre"])
+    lignes.sort(key=lambda ligne: ligne["centre"])
     return lignes
 
 
@@ -112,7 +112,7 @@ def blocs_de_page(page, entetes, ignorer):
     lignes = lignes_de_mots(page)
     # Bord gauche du tableau : deduit des lignes d'horaire les plus fournies,
     # pour que la colonne des jours feries (a droite) ne pollue pas les libelles.
-    denses = [heures_de_ligne(l) for l in lignes]
+    denses = [heures_de_ligne(ligne) for ligne in lignes]
     denses = [h for h in denses if len(h) >= 8]
     x_table = min((min(x for x, _ in h) for h in denses), default=None)
     blocs, courant, fragment = [], None, ""
