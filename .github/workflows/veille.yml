@@ -39,7 +39,7 @@ jobs:
 
       - name: Ouvrir ou mettre à jour l'issue de suivi
         if: steps.veille.outputs.ecart == 'oui'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
