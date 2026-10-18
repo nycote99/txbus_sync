@@ -1,0 +1,38 @@
+name: Signaler une anomalie
+description: Quelque chose ne fonctionne pas comme prévu dans l'application.
+title: '[Anomalie] '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de signaler le problème. Pour les questions de réservation ou
+        d'horaire officiel, c'est la STC qu'il faut joindre : ce projet est
+        indépendant et ses horaires peuvent diverger — en cas de divergence,
+        l'information de la STC prévaut.
+  - type: textarea
+    id: description
+    attributes:
+      label: Ce qui se passe
+      description: Décrivez le problème et ce que vous attendiez à la place.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Pour reproduire
+      description: Les gestes qui mènent au problème, dans l'ordre.
+      placeholder: |
+        1. Ouvrir l'onglet « Mon retour »
+        2. Choisir le jeudi…
+        3. …
+  - type: input
+    id: contexte
+    attributes:
+      label: Appareil et navigateur
+      placeholder: 'Ex. : iPhone 13, Safari ; ou Windows, Firefox'
+  - type: textarea
+    id: captures
+    attributes:
+      label: Captures d'écran ou précisions
+      description: Glissez les captures ici, le cas échéant.

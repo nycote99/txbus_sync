@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: L'application en ligne
+    url: https://nycote99.github.io/txbus_sync/
+    about: Voir le comportement réel avant de signaler une anomalie.
+  - name: Réservation et horaires officiels (STC)
+    url: https://stc.accestaxi.com/
+    about: La réservation du taxibus et les horaires officiels relèvent de la STC — en cas de divergence, son information prévaut.
