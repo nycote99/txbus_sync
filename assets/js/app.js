@@ -11,7 +11,7 @@ import {
   dateLongue, depuisISO, enHeure, enISO, jourDeServiceActuel, maintenant,
   numeroDeJour, profilDuJour,
 } from './calendrier.js';
-import { DELAI_RAFRAICHISSEMENT, chargerTempsReel } from './tempsreel.js';
+import { TransitFeedService } from './gtfs-client.js';
 import { preferences, definir } from './preferences.js';
 import { vueMaintenant } from './vues/maintenant.js';
 import { vueRetour } from './vues/retour.js';
@@ -34,6 +34,7 @@ const elementEtatDuJour = document.getElementById('etat-du-jour');
 let donnees = null;
 let reference = null;
 let tempsReel = null;
+let serviceTempsReel = null;
 let vueActive = 'maintenant';
 let etatVue = {};
 
@@ -76,14 +77,13 @@ async function demarrer() {
   });
 
   dessiner();
-  rafraichirTempsReel();
+  brancherTempsReel();
   setInterval(dessiner, 30000);
-  setInterval(rafraichirTempsReel, DELAI_RAFRAICHISSEMENT);
   setInterval(majHorloge, 1000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
     dessiner();
-    rafraichirTempsReel();
+    if (serviceTempsReel) serviceTempsReel.rafraichir();
   });
   enregistrerServiceWorker();
 }
@@ -95,18 +95,28 @@ async function charger(chemin) {
 }
 
 /**
- * Rafraichit les positions reelles. Le flux ne decrit que la journee en cours :
- * inutile de l'interroger quand l'ecran est en arriere-plan.
+ * Branche le client GTFS-RT. C'est lui qui interroge le flux, à son
+ * intervalle et avec son délai maximal ; l'application ne fait que recevoir
+ * ses états. Le flux ne décrit que la journée en cours : inutile de
+ * l'interroger quand l'écran est en arrière-plan.
  */
-async function rafraichirTempsReel() {
-  if (!reference || document.hidden) return;
-  const etat = await chargerTempsReel(reference);
-  const changement = resume(etat) !== resume(tempsReel);
-  const avant = tempsReel;
-  tempsReel = etat;
-  if (!changement) return;
-  annoncer(etat, avant);
-  dessiner();
+function brancherTempsReel() {
+  if (!reference) return;
+  serviceTempsReel = new TransitFeedService(reference, {
+    visible: () => !document.hidden,
+  });
+  serviceTempsReel.addEventListener('update', ({ detail }) => {
+    // Hors mode DIRECT, rien d'observé ne subsiste : les vues retombent
+    // sur l'estimation horaire, comme quand le flux n'avait jamais répondu.
+    const etat = detail.mode === 'DIRECT' ? detail.etat : null;
+    const changement = resume(etat) !== resume(tempsReel);
+    const avant = tempsReel;
+    tempsReel = etat;
+    if (!changement) return;
+    annoncer(etat, avant);
+    dessiner();
+  });
+  serviceTempsReel.demarrer();
 }
 
 /**

@@ -4,7 +4,7 @@
  */
 
 import {
-  decalerDate, enHeure, enMinutes, instant, instantDeDepart,
+  decalerDate, enHeure, enMinutes, instantDeDepart,
   instantDepuisEpoch, profilDuJour,
 } from './calendrier.js';
 import {
@@ -250,60 +250,12 @@ export function destinationsDepuis(donnees, origine, service) {
   return donnees.zones.filter((zone) => codes.has(zone.code));
 }
 
-/**
- * Heure limite pour reserver un depart de taxibus.
- *
- * Deux regles officielles se cumulent :
- *   1. reservation possible jusqu'a 30 minutes avant le depart ;
- *   2. pour les departs qui ont lieu alors que le Terminus des Promenades est
- *      ferme — soiree tardive, nuit, et debut de matinee du lendemain — la
- *      reservation doit etre faite avant sa fermeture.
- * La plus contraignante des deux l'emporte.
- */
-export function limiteReservation(donnees, jourDeService, heure) {
-  const instantDepart = instantDeDepart(jourDeService, heure);
-  const delai = donnees.regles.reservation_minutes_avant;
-  let limite = instantDepart - delai;
-  let motif = 'delai';
+/** Les regles de reservation vivent dans booking-rules.js, module pur
+ * dedie : reseau.js les importe pour son propre usage et les reexporte
+ * pour ses consommateurs historiques. */
+import { etatReservation, limiteReservation } from './booking-rules.js';
 
-  const profil = profilDuJour(jourDeService, donnees);
-  const ouvertPendantLeDepart = profil.terminusOuvert
-    && instantDepart >= instant(jourDeService, profil.ouverture)
-    && instantDepart <= instant(jourDeService, profil.fermeture);
-
-  if (!ouvertPendantLeDepart) {
-    const fermeture = derniereFermeture(donnees, jourDeService, instantDepart);
-    if (fermeture !== null && fermeture < limite) {
-      limite = fermeture;
-      motif = 'fermeture_terminus';
-    }
-  }
-  return { instantDepart, limite, motif };
-}
-
-/** Derniere fermeture du terminus qui precede l'instant vise. */
-function derniereFermeture(donnees, jourDeService, instantVise) {
-  for (let recul = 0; recul < 14; recul += 1) {
-    const jour = decalerDate(jourDeService, -recul);
-    const profil = profilDuJour(jour, donnees);
-    if (!profil.terminusOuvert) continue;
-    const fermeture = instant(jour, profil.fermeture);
-    if (fermeture <= instantVise) return fermeture;
-  }
-  return null;
-}
-
-/** Etat d'un depart taxibus par rapport a son heure limite de reservation. */
-export function etatReservation(limite, instantCourant, seuilAlerte = 60) {
-  const restant = limite.limite - instantCourant;
-  if (restant <= 0) {
-    return { code: 'ferme', restant, libelle: 'Réservation fermée' };
-  }
-  if (restant <= seuilAlerte) {
-    return { code: 'bientot', restant, libelle: 'Dernière chance' };
-  }
-  return { code: 'ouvert', restant, libelle: 'Réservable' };
-}
+export { etatReservation, limiteReservation };
 
 /**
  * Departs de taxibus, avec leur heure limite de reservation.
